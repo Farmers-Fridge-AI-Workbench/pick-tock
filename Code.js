@@ -156,6 +156,8 @@ function saveDayLevers(weekLabel, day, levers) {
     pickStart:    levers.pickStart    !== undefined ? levers.pickStart    : existing.pickStart,
     allocStart:   allocStart,
     includeBreak: levers.includeBreak !== undefined ? levers.includeBreak : (existing.includeBreak !== undefined ? existing.includeBreak : true),
+    break30:      levers.break30      !== undefined ? levers.break30      : (existing.break30      !== undefined ? existing.break30      : { enabled: true, time: null }),
+    break15:      levers.break15      !== undefined ? levers.break15      : (existing.break15      !== undefined ? existing.break15      : { enabled: true, time: null }),
   };
 
   ['uph','pickStart','allocStart','includeBreak'].forEach(f => {
