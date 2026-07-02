@@ -883,3 +883,85 @@ function submitFeatureRequest(data) {
 function getCurrentUserEmail() {
   return Session.getActiveUser().getEmail();
 }
+// ─── DAY NOTES ────────────────────────────────────────────────────────────────
+
+function saveDayNote(weekLabel, day, text) {
+  const user = getCurrentUser();
+  if (!text || !text.trim()) throw new Error('Note is empty');
+  let state = getState() || { demands: {} };
+  if (!state.demands) state.demands = {};
+  if (!state.demands[weekLabel]) state.demands[weekLabel] = {};
+  if (!state.demands[weekLabel][day]) state.demands[weekLabel][day] = {};
+  if (!state.demands[weekLabel][day].notes) state.demands[weekLabel][day].notes = [];
+  const note = { text: text.trim(), email: user.email, ts: new Date().toISOString(), edited: false };
+  state.demands[weekLabel][day].notes.unshift(note);
+  state.demands[weekLabel][day].notes = state.demands[weekLabel][day].notes.slice(0, 20);
+  state.lastModified = new Date().toISOString();
+  const stateToSave = Object.assign({}, state);
+  delete stateToSave.cptOverrides;
+  PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  return { ok: true, note };
+}
+
+function editDayNote(weekLabel, day, idx, newText) {
+  const user = getCurrentUser();
+  if (!newText || !newText.trim()) throw new Error('Note is empty');
+  let state = getState() || { demands: {} };
+  const notes = state.demands?.[weekLabel]?.[day]?.notes;
+  if (!notes || !notes[idx]) throw new Error('Note not found');
+  const note = notes[idx];
+  if (note.email.toLowerCase() !== user.email.toLowerCase()) throw new Error('Not authorized');
+  note.text = newText.trim();
+  note.edited = true;
+  state.lastModified = new Date().toISOString();
+  const stateToSave = Object.assign({}, state);
+  delete stateToSave.cptOverrides;
+  PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  return { ok: true };
+}
+
+function deleteDayNote(weekLabel, day, idx) {
+  const user = getCurrentUser();
+  let state = getState() || { demands: {} };
+  const notes = state.demands?.[weekLabel]?.[day]?.notes;
+  if (!notes || !notes[idx]) throw new Error('Note not found');
+  const note = notes[idx];
+  if (note.email.toLowerCase() !== user.email.toLowerCase() && !user.isAdmin) {
+    throw new Error('Not authorized');
+  }
+  notes.splice(idx, 1);
+  state.lastModified = new Date().toISOString();
+  const stateToSave = Object.assign({}, state);
+  delete stateToSave.cptOverrides;
+  PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  return { ok: true };
+}
+
+// ─── SLACK PUBLISH NOTIFY ─────────────────────────────────────────────────────
+
+function sendPublishSlackNotify(weekLabel, days, mode) {
+  const user = getCurrentUser();
+  if (!user.isAdmin) throw new Error('Not authorized');
+  const webhookUrl = PropertiesService.getScriptProperties().getProperty('picktock_slack_webhook');
+  if (!webhookUrl) throw new Error('Slack webhook not configured');
+  const modeLabel = mode === 'actual' ? 'Actual Orders' : 'Forecast';
+  const dayList = days.map(d => '• ' + d).join('\n');
+  const appUrl = 'https://script.google.com/a/macros/farmersfridge.com/s/AKfycby58PFj1TWT_f0QhmDhX3YaZYfblruZ_yjcabpLfTdpBZvbM_5a-rhumyde53-b21to/exec';
+  const text = [
+    '*Pick Tock has been updated* \u23f1\ufe0f',
+    '',
+    '*Week:* ' + weekLabel,
+    '*Mode:* ' + modeLabel,
+    '*Days published:*',
+    dayList,
+    '',
+    'Please review and approve your department for the days above. Raise any concerns in this thread. \ud83d\udd14',
+    '',
+    '<' + appUrl + '|Open Pick Tock \u2192>',
+  ].join('\n');
+  const payload = JSON.stringify({ text });
+  const options = { method: 'post', contentType: 'application/json', payload };
+  UrlFetchApp.fetch(webhookUrl, options);
+  writeAuditLog(user.email, 'slack_notify', 'publish', '', weekLabel + ' (' + mode + ')', weekLabel, '');
+  return { ok: true };
+}
