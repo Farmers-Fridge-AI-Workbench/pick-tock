@@ -389,7 +389,7 @@ function fetchAndPublishAllForecastWeeks() {
         history = history.slice(0, 5);
       }
 
-      state.demands[weekLabel][day] = {
+      state.demands[weekLabel][day] = Object.assign({}, existing, {
         vol:         volByLH,
         mode:        'forecast',
         date:        dates[day] || existing?.date || '',
@@ -397,9 +397,7 @@ function fetchAndPublishAllForecastWeeks() {
         publishedAt: new Date().toISOString(),
         locked:      true,
         history,
-        levers:      existing?.levers || undefined,
-        holidayOverride: existing?.holidayOverride || undefined,
-      };
+      });
       totalDays++;
     });
   });
@@ -432,7 +430,7 @@ function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadedLHs)
       history = history.slice(0, 5);
     }
 
-    state.demands[weekLabel][day] = {
+    const overrides = {
       vol:         volByLH,
       mode,
       date:        dates[day] || existing?.date || '',
@@ -440,10 +438,9 @@ function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadedLHs)
       publishedAt: new Date().toISOString(),
       locked:      true,
       history,
-      levers:      existing?.levers || undefined,
-      holidayOverride: existing?.holidayOverride || undefined,
-      levelLoadedLHs: (levelLoadedLHs && levelLoadedLHs[day]) || existing?.levelLoadedLHs || undefined,
     };
+    if (levelLoadedLHs && levelLoadedLHs[day] !== undefined) overrides.levelLoadedLHs = levelLoadedLHs[day];
+    state.demands[weekLabel][day] = Object.assign({}, existing, overrides);
   });
 
   writeAuditLog(user.email, 'publish', 'week', '', weekLabel + ' (' + mode + ')', weekLabel, '');
@@ -474,7 +471,7 @@ function undoDayPublish(weekLabel, day) {
 
   writeAuditLog(user.email, 'undo', 'week/day', dayData.mode, prev.mode, weekLabel, day);
 
-  state.demands[weekLabel][day] = {
+  state.demands[weekLabel][day] = Object.assign({}, dayData, {
     vol:         prev.vol,
     mode:        prev.mode,
     date:        prev.date,
@@ -482,9 +479,7 @@ function undoDayPublish(weekLabel, day) {
     publishedAt: prev.publishedAt || '',
     locked:      true,
     history,
-    levers:      dayData.levers || undefined,
-    holidayOverride: dayData.holidayOverride || undefined,
-  };
+  });
 
   saveState(state);
   return { ok: true, day, mode: prev.mode, stepsLeft: history.length };
@@ -928,6 +923,7 @@ function saveDayNote(weekLabel, day, text) {
   const stateToSave = Object.assign({}, state);
   delete stateToSave.cptOverrides;
   PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  writeAuditLog(user.email, 'note_add', 'notes', '', note.text, weekLabel, day);
   return { ok: true, note };
 }
 
@@ -939,12 +935,14 @@ function editDayNote(weekLabel, day, idx, newText) {
   if (!notes || !notes[idx]) throw new Error('Note not found');
   const note = notes[idx];
   if (note.email.toLowerCase() !== user.email.toLowerCase()) throw new Error('Not authorized');
+  const oldText = note.text;
   note.text = newText.trim();
   note.edited = true;
   state.lastModified = new Date().toISOString();
   const stateToSave = Object.assign({}, state);
   delete stateToSave.cptOverrides;
   PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  writeAuditLog(user.email, 'note_edit', 'notes', oldText, note.text, weekLabel, day);
   return { ok: true };
 }
 
@@ -962,6 +960,7 @@ function deleteDayNote(weekLabel, day, idx) {
   const stateToSave = Object.assign({}, state);
   delete stateToSave.cptOverrides;
   PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  writeAuditLog(user.email, 'note_delete', 'notes', note.text, '', weekLabel, day);
   return { ok: true };
 }
 
