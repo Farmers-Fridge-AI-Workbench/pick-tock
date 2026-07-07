@@ -6,6 +6,7 @@ const FORECAST_SHEET_ID = '1wyHr4QhvRGfyHgYURY7k5vLJFrpV3AX_wo5hkkk151A';
 const FORECAST_TAB      = 'Pick Pack Forecast';
 const STORAGE_KEY       = 'picktock_state';
 const CPT_KEY           = 'picktock_cpts';
+const LABOR_RATE_KEY    = 'picktock_last_hourly_rate';
 
 // Admin emails — add/remove to grant/revoke access
 const ADMINS = [
@@ -106,6 +107,12 @@ function getState() {
   // Always load CPTs from their own isolated key
   const cptRaw = props.getProperty(CPT_KEY);
   try { state.cptOverrides = cptRaw ? JSON.parse(cptRaw) : {}; } catch(e) { state.cptOverrides = {}; }
+  // If laborConfig or its rate is missing, backfill from the last-saved rate (not a stale hardcoded default)
+  if (!state.laborConfig || typeof state.laborConfig.hourlyRate !== 'number') {
+    const lastRate = parseFloat(props.getProperty(LABOR_RATE_KEY));
+    const fallbackRate = isNaN(lastRate) ? 24.39 : lastRate;
+    state.laborConfig = Object.assign({ empPerLine: 12, replenisher: 2, leads: 2, boxBuilders: 2 }, state.laborConfig || {}, { hourlyRate: fallbackRate });
+  }
   return state;
 }
 
@@ -113,6 +120,10 @@ function saveState(state) {
   const user = getCurrentUser();
   if (!user.isAdmin) throw new Error('Not authorized');
   state.lastModified = new Date().toISOString();
+  // Keep the persisted "last known rate" in sync any time labor config is saved
+  if (state.laborConfig && typeof state.laborConfig.hourlyRate === 'number') {
+    PropertiesService.getScriptProperties().setProperty(LABOR_RATE_KEY, String(state.laborConfig.hourlyRate));
+  }
   // Strip cptOverrides before writing main state — CPTs have their own key
   const stateToSave = Object.assign({}, state);
   delete stateToSave.cptOverrides;
@@ -292,6 +303,11 @@ function fetchForecastWeek(weekLabel) {
   return { lhTotals, dates, weekLabel, mode: 'forecast' };
 }
 
+// ─── MARKET → LINEHAUL MAP (single source of truth — client fetches this, does not hardcode its own copy) ──
+function getMarketLhMap() {
+  return MARKET_LH_MAP;
+}
+
 // ─── FETCH & PUBLISH ALL FORECAST WEEKS ──────────────────────────────────────
 
 function fetchAndPublishAllForecastWeeks() {
@@ -397,7 +413,7 @@ function fetchAndPublishAllForecastWeeks() {
 
 // ─── PUBLISH ──────────────────────────────────────────────────────────────────
 
-function publishWeek(weekLabel, lhTotals, dates, mode) {
+function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadedLHs) {
   const user = getCurrentUser();
   if (!user.isAdmin) throw new Error('Not authorized');
 
@@ -426,10 +442,14 @@ function publishWeek(weekLabel, lhTotals, dates, mode) {
       history,
       levers:      existing?.levers || undefined,
       holidayOverride: existing?.holidayOverride || undefined,
+      levelLoadedLHs: (levelLoadedLHs && levelLoadedLHs[day]) || existing?.levelLoadedLHs || undefined,
     };
   });
 
   writeAuditLog(user.email, 'publish', 'week', '', weekLabel + ' (' + mode + ')', weekLabel, '');
+  if (mode === 'actual' && rawPaste) {
+    logRawPasteData(user.email, weekLabel, Object.keys(lhTotals).join(', '), rawPaste);
+  }
   saveState(state);
   logPublish(user.email, weekLabel, mode);
   return { ok: true, weekLabel, days: Object.keys(lhTotals).length };
@@ -748,6 +768,22 @@ function removeAdminUser(email) {
 
 const AUDIT_LOG_SHEET_ID = '171MBi7ENBxNwaVwp4r6d-bIBhSCoKyPZiakB8snK6T4';
 
+function logRawPasteData(email, weekLabel, days, rawPaste) {
+  try {
+    const ss = SpreadsheetApp.openById(AUDIT_LOG_SHEET_ID);
+    let sheet = ss.getSheetByName('Paste Data Log');
+    if (!sheet) {
+      sheet = ss.insertSheet('Paste Data Log');
+      sheet.appendRow(['Timestamp','Email','Week','Days','Raw Pasted Data']);
+      sheet.getRange(1,1,1,5).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+    sheet.appendRow([new Date(), email || '', weekLabel || '', days || '', rawPaste || '']);
+  } catch(e) {
+    Logger.log('Paste data log write failed: ' + e.message);
+  }
+}
+
 function writeAuditLog(email, action, field, oldVal, newVal, week, day) {
   try {
     const ss = SpreadsheetApp.openById(AUDIT_LOG_SHEET_ID);
@@ -804,26 +840,18 @@ function saveAuditViewers(viewers) {
 
 function logPublish(email, weekLabel, mode) {
   try {
-    const ss = SpreadsheetApp.openById(FORECAST_SHEET_ID);
-    let logSheet = ss.getSheetByName('PickTock Log');
+    const ss = SpreadsheetApp.openById(AUDIT_LOG_SHEET_ID);
+    let logSheet = ss.getSheetByName('Publish Log');
     if (!logSheet) {
-      logSheet = ss.insertSheet('PickTock Log');
+      logSheet = ss.insertSheet('Publish Log');
       logSheet.appendRow(['Timestamp', 'User', 'Week', 'Mode', 'Action']);
+      logSheet.getRange(1,1,1,5).setFontWeight('bold');
+      logSheet.setFrozenRows(1);
     }
     logSheet.appendRow([new Date(), email, weekLabel, mode, 'publish']);
   } catch(e) {
     // Log sheet is optional — don't fail publish if it errors
   }
-}
-
-function getPublishLog() {
-  try {
-    const ss = SpreadsheetApp.openById(FORECAST_SHEET_ID);
-    const logSheet = ss.getSheetByName('PickTock Log');
-    if (!logSheet) return [];
-    const rows = logSheet.getDataRange().getValues();
-    return rows.slice(1).reverse().slice(0, 20);
-  } catch(e) { return []; }
 }
 
 // ─── ONE-TIME MIGRATION: split Chicago IL PM → IL PM + IL AM ─────────────────
@@ -942,6 +970,7 @@ function deleteDayNote(weekLabel, day, idx) {
 function sendPublishSlackNotify(weekLabel, days, mode) {
   const user = getCurrentUser();
   if (!user.isAdmin) throw new Error('Not authorized');
+  throw new Error('Slack notify is temporarily disabled'); // DISABLED — remove this line to re-enable
   const webhookUrl = PropertiesService.getScriptProperties().getProperty('picktock_slack_webhook');
   if (!webhookUrl) throw new Error('Slack webhook not configured');
   const modeLabel = mode === 'actual' ? 'Actual Orders' : 'Forecast';
