@@ -797,7 +797,7 @@ function parseDemandPaste(){
   if(hasLoadType){headerRow.forEach((cell,ci)=>{const clean=cell.replace(/['\u2019]/g,'').trim().slice(0,3).toLowerCase();if(SHORT_TO_DAY[clean])dayCols[ci]=SHORT_TO_DAY[clean];});}
   else{headerRow.forEach((cell,ci)=>{if(DAYS_ORDER.includes(cell))dayCols[ci]=cell;});}
   if(!Object.keys(dayCols).length){preview.innerHTML='<div class="status-bar status-err">Could not find day headers.</div>';return;}
-  const activeDays=[...new Set(Object.values(dayCols))].sort((a,b)=>DAYS_ORDER.indexOf(a)-DAYS_ORDER.indexOf(b));
+  let activeDays=[...new Set(Object.values(dayCols))].sort((a,b)=>DAYS_ORDER.indexOf(a)-DAYS_ORDER.indexOf(b));
   const marketCol=hasLoadType?headerRow.findIndex(c=>c.toUpperCase()==='MARKET'):0;
   const loadTypeCol=hasLoadType?headerRow.findIndex(c=>c.toUpperCase()==='LOAD_TYPE'):-1;
   const marketData={},marketDayType={},warnings=[];
@@ -816,6 +816,9 @@ function parseDemandPaste(){
     });
   }
   if(!Object.keys(marketData).length){preview.innerHTML='<div class="status-bar status-err">No recognized markets found.</div>';return;}
+  const daysWithVolume=new Set();Object.values(marketData).forEach(days=>Object.keys(days).forEach(d=>daysWithVolume.add(d)));
+  const droppedDays=activeDays.filter(d=>!daysWithVolume.has(d));
+  activeDays=activeDays.filter(d=>daysWithVolume.has(d));
   const lhTotals={};activeDays.forEach(d=>{lhTotals[d]={};});
   Object.entries(marketData).forEach(([market,days])=>{
     const lh=MARKET_LH_MAP[market];if(!lh)return;
@@ -853,6 +856,7 @@ function parseDemandPaste(){
   const mode=document.querySelector('input[name="dataMode"]:checked').value,weekLabel=document.getElementById('weekLabel').value.trim()||guessWeekLabel();
   html+=`<div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:8px">${Object.keys(marketData).length} markets · ${lhsPresent.length} linehauls · <strong style="color:${mode==='actual'?'var(--green)':'var(--amber)'}">${weekLabel} · ${mode}</strong>${hasLoadType?' · pink = level loaded':''}</div>`;
   if(warnings.length)html+=`<div class="status-bar status-err" style="margin-top:8px">${warnings.map(w=>'⚠ '+w).join('<br>')}</div>`;
+  if(droppedDays.length)html+=`<div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:6px">Skipped empty day column${droppedDays.length>1?'s':''}: ${droppedDays.map(d=>d.slice(0,3)).join(', ')} — no volume found, nothing will be published for ${droppedDays.length>1?'these days':'this day'}.</div>`;
   preview.innerHTML=html;
   window._pendingDemand={lhTotals,weekLabel,mode,dates:{},rawText:raw,levelLoadedLHs};
   document.getElementById('publishRow').style.display='';

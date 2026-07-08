@@ -422,6 +422,8 @@ function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadedLHs)
   Object.entries(lhTotals).forEach(([day, volByLH]) => {
     const existing = state.demands[weekLabel][day];
     if (existing && existing.mode === 'actual' && mode === 'forecast') return;
+    const hasVolume = volByLH && Object.values(volByLH).some(v => v > 0);
+    if (existing && !hasVolume) return; // guard: never let an empty incoming day wipe existing data
 
     let history = [];
     if (existing) {
