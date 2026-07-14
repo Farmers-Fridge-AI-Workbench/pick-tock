@@ -269,9 +269,10 @@ function fetchForecastWeek(weekLabel) {
   const allData = sheet.getDataRange().getValues();
 
   const lhTotals = {};
+  const marketVol = {};
   const dates = {};
   weekCols.sort((a,b) => DAYS_ORDER.indexOf(a.day) - DAYS_ORDER.indexOf(b.day));
-  weekCols.forEach(wc => { lhTotals[wc.day] = {}; dates[wc.day] = wc.date; });
+  weekCols.forEach(wc => { lhTotals[wc.day] = {}; marketVol[wc.day] = {}; dates[wc.day] = wc.date; });
 
   const storedState = getState();
   const chicagoSplit = storedState?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
@@ -294,13 +295,19 @@ function fetchForecastWeek(weekLabel) {
         const amVol = vol - pmVol;
         lhTotals[wc.day]['IL PM'] = (lhTotals[wc.day]['IL PM'] || 0) + pmVol;
         lhTotals[wc.day]['IL AM'] = (lhTotals[wc.day]['IL AM'] || 0) + amVol;
+        if (!marketVol[wc.day]['IL PM']) marketVol[wc.day]['IL PM'] = {};
+        if (!marketVol[wc.day]['IL AM']) marketVol[wc.day]['IL AM'] = {};
+        marketVol[wc.day]['IL PM']['Chicago'] = pmVol;
+        marketVol[wc.day]['IL AM']['Chicago'] = amVol;
       } else {
         lhTotals[wc.day][lh] = (lhTotals[wc.day][lh] || 0) + vol;
+        if (!marketVol[wc.day][lh]) marketVol[wc.day][lh] = {};
+        marketVol[wc.day][lh][market] = (marketVol[wc.day][lh][market] || 0) + vol;
       }
     });
   }
 
-  return { lhTotals, dates, weekLabel, mode: 'forecast' };
+  return { lhTotals, dates, weekLabel, mode: 'forecast', marketVol };
 }
 
 // ─── MARKET → LINEHAUL MAP (single source of truth — client fetches this, does not hardcode its own copy) ──
@@ -349,9 +356,9 @@ function fetchAndPublishAllForecastWeeks() {
     });
     if (!weekCols.length) return;
 
-    const lhTotals = {}, dates = {};
+    const lhTotals = {}, dates = {}, marketVol = {};
     weekCols.sort((a,b) => DAYS_ORDER.indexOf(a.day) - DAYS_ORDER.indexOf(b.day));
-    weekCols.forEach(wc => { lhTotals[wc.day] = {}; dates[wc.day] = wc.date; });
+    weekCols.forEach(wc => { lhTotals[wc.day] = {}; dates[wc.day] = wc.date; marketVol[wc.day] = {}; });
 
     const seenMarkets = new Set();
     for (let r = marketStartRow; r < allData.length; r++) {
@@ -370,8 +377,14 @@ function fetchAndPublishAllForecastWeeks() {
           const amVol = vol - pmVol;
           lhTotals[wc.day]['IL PM'] = (lhTotals[wc.day]['IL PM'] || 0) + pmVol;
           lhTotals[wc.day]['IL AM'] = (lhTotals[wc.day]['IL AM'] || 0) + amVol;
+          if (!marketVol[wc.day]['IL PM']) marketVol[wc.day]['IL PM'] = {};
+          if (!marketVol[wc.day]['IL AM']) marketVol[wc.day]['IL AM'] = {};
+          marketVol[wc.day]['IL PM']['Chicago'] = pmVol;
+          marketVol[wc.day]['IL AM']['Chicago'] = amVol;
         } else {
           lhTotals[wc.day][lh] = (lhTotals[wc.day][lh] || 0) + vol;
+          if (!marketVol[wc.day][lh]) marketVol[wc.day][lh] = {};
+          marketVol[wc.day][lh][market] = (marketVol[wc.day][lh][market] || 0) + vol;
         }
       });
     }
@@ -397,6 +410,8 @@ function fetchAndPublishAllForecastWeeks() {
         publishedAt: new Date().toISOString(),
         locked:      true,
         history,
+        forecastVol: volByLH, // permanent snapshot, survives later actual overwrites via Object.assign
+        marketVol:   marketVol[day] || {},
       });
       totalDays++;
     });
@@ -409,11 +424,83 @@ function fetchAndPublishAllForecastWeeks() {
   return { ok: true, weeksLoaded: weeks.length, daysLoaded: totalDays, daysSkipped: skippedDays };
 }
 
+// ─── DERIVE MARKET BREAKDOWN SERVER-SIDE FROM RAW PASTE ───────────────────────
+// Mirrors the client's parseDemandPaste market logic, so marketVol capture
+// works even if a browser is still running a stale cached copy of Index.html.
+function deriveMarketVolFromRawPaste(rawPaste) {
+  if (!rawPaste) return null;
+  try {
+    const state = getState();
+    const chicagoSplit = state?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
+    const DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
+    const SHORT_TO_DAY = {};
+    Object.entries(DAY_SHORT).forEach(([full, short]) => { SHORT_TO_DAY[short.toLowerCase()] = full; });
+
+    const rows = rawPaste.trim().split('\n').map(r => r.split('\t').map(c => c.trim()));
+    let headerIdx = -1, headerRow = null, hasLoadType = false;
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const rowU = rows[i].map(c => c.toUpperCase());
+      if (rowU.includes('MARKET') && rowU.includes('LOAD_TYPE')) { headerIdx = i; headerRow = rows[i]; hasLoadType = true; break; }
+    }
+    if (headerIdx === -1) {
+      for (let i = 0; i < Math.min(rows.length, 5); i++) {
+        if (DAYS_ORDER.some(d => rows[i].includes(d))) { headerIdx = i; headerRow = rows[i]; break; }
+      }
+    }
+    if (headerIdx === -1) return null;
+
+    const dayCols = {};
+    if (hasLoadType) {
+      headerRow.forEach((cell, ci) => {
+        const clean = cell.replace(/['\u2019]/g, '').trim().slice(0, 3).toLowerCase();
+        if (SHORT_TO_DAY[clean]) dayCols[ci] = SHORT_TO_DAY[clean];
+      });
+    } else {
+      headerRow.forEach((cell, ci) => { if (DAYS_ORDER.includes(cell)) dayCols[ci] = cell; });
+    }
+    if (!Object.keys(dayCols).length) return null;
+
+    const marketCol = hasLoadType ? headerRow.findIndex(c => c.toUpperCase() === 'MARKET') : 0;
+    const marketVol = {};
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const row = rows[i];
+      const market = row[marketCol];
+      if (!market || !MARKET_LH_MAP[market]) continue;
+      Object.entries(dayCols).forEach(([ci, day]) => {
+        const v = parseFloat((row[ci] || '0').replace(/,/g, ''));
+        if (isNaN(v) || v <= 0) return;
+        if (!marketVol[day]) marketVol[day] = {};
+        if (market === 'Chicago') {
+          const pmVol = Math.round(v * chicagoSplit.ilPm);
+          const amVol = Math.round(v) - pmVol;
+          if (!marketVol[day]['IL PM']) marketVol[day]['IL PM'] = {};
+          if (!marketVol[day]['IL AM']) marketVol[day]['IL AM'] = {};
+          marketVol[day]['IL PM']['Chicago'] = pmVol;
+          marketVol[day]['IL AM']['Chicago'] = amVol;
+        } else {
+          const lh = MARKET_LH_MAP[market];
+          if (!marketVol[day][lh]) marketVol[day][lh] = {};
+          marketVol[day][lh][market] = (marketVol[day][lh][market] || 0) + Math.round(v);
+        }
+      });
+    }
+    return Object.keys(marketVol).length ? marketVol : null;
+  } catch (e) {
+    Logger.log('deriveMarketVolFromRawPaste failed: ' + e.message);
+    return null;
+  }
+}
+
 // ─── PUBLISH ──────────────────────────────────────────────────────────────────
 
-function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadedLHs) {
+function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadVol, marketVolByDay) {
   const user = getCurrentUser();
   if (!user.isAdmin) throw new Error('Not authorized');
+
+  // Prefer server-derived market breakdown from the raw paste (works regardless of
+  // client JS version); fall back to whatever the client computed and sent.
+  const derivedMarketVol = (mode === 'actual') ? deriveMarketVolFromRawPaste(rawPaste) : null;
+  const effectiveMarketVol = derivedMarketVol || marketVolByDay;
 
   let state = getState() || { demands: {}, lhSchedule: null, thruputs: null, cptOverrides: {} };
   if (!state.demands) state.demands = {};
@@ -441,13 +528,15 @@ function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadedLHs)
       locked:      true,
       history,
     };
-    if (levelLoadedLHs && levelLoadedLHs[day] !== undefined) overrides.levelLoadedLHs = levelLoadedLHs[day];
+    if (mode === 'forecast') overrides.forecastVol = volByLH; // permanent snapshot, survives later actual overwrites via Object.assign
+    if (levelLoadVol && levelLoadVol[day] !== undefined) overrides.levelLoadVol = levelLoadVol[day];
+    if (effectiveMarketVol && effectiveMarketVol[day] !== undefined) overrides.marketVol = effectiveMarketVol[day];
     state.demands[weekLabel][day] = Object.assign({}, existing, overrides);
   });
 
   writeAuditLog(user.email, 'publish', 'week', '', weekLabel + ' (' + mode + ')', weekLabel, '');
   if (mode === 'actual' && rawPaste) {
-    logRawPasteData(user.email, weekLabel, Object.keys(lhTotals).join(', '), rawPaste);
+    logRawPasteData(user.email, weekLabel, lhTotals, rawPaste);
   }
   saveState(state);
   logPublish(user.email, weekLabel, mode);
@@ -487,7 +576,50 @@ function undoDayPublish(weekLabel, day) {
   return { ok: true, day, mode: prev.mode, stepsLeft: history.length };
 }
 
-// ─── ACTUAL THROUGHPUT FETCH ──────────────────────────────────────────────────
+// ─── ONE-TIME BACKFILL ─────────────────────────────────────────────────────────
+// Run once from the Apps Script editor (Run > backfillForecastSnapshots) to recover
+// forecastVol for days that already flipped to 'actual' before the snapshot field
+// existed. Pulls the most recent history entry with mode:'forecast'. Days where
+// that entry has already been evicted from the 5-entry history cap can't be recovered.
+function backfillForecastSnapshots() {
+  const user = getCurrentUser();
+  if (!user.isAdmin) throw new Error('Not authorized');
+
+  let state = getState();
+  if (!state || !state.demands) {
+    Logger.log('No state/demands found.');
+    return { daysScanned: 0, daysBackfilled: 0, daysUnrecoverable: 0 };
+  }
+
+  let scanned = 0, backfilled = 0, unrecoverable = 0;
+  const unrecoverableList = [];
+
+  Object.keys(state.demands).forEach(weekLabel => {
+    Object.keys(state.demands[weekLabel]).forEach(day => {
+      const dayData = state.demands[weekLabel][day];
+      if (!dayData || dayData.mode !== 'actual') return;
+      scanned++;
+      if (dayData.forecastVol) return; // already has a snapshot
+
+      const hist = dayData.history || [];
+      const forecastEntry = hist.find(h => h.mode === 'forecast' && h.vol);
+      if (forecastEntry) {
+        dayData.forecastVol = forecastEntry.vol;
+        backfilled++;
+      } else {
+        unrecoverable++;
+        unrecoverableList.push(weekLabel + ' ' + day);
+      }
+    });
+  });
+
+  saveState(state);
+  writeAuditLog(user.email, 'backfill', 'forecastVol', '', backfilled + ' backfilled, ' + unrecoverable + ' unrecoverable', '', '');
+  Logger.log('Scanned: ' + scanned + ' actual days. Backfilled: ' + backfilled + '. Unrecoverable: ' + unrecoverable + (unrecoverableList.length ? ' (' + unrecoverableList.join(', ') + ')' : ''));
+  return { daysScanned: scanned, daysBackfilled: backfilled, daysUnrecoverable: unrecoverable };
+}
+
+
 
 function fetchAndSaveThruputs() {
   const result = fetchActualThruputs();
@@ -765,17 +897,22 @@ function removeAdminUser(email) {
 
 const AUDIT_LOG_SHEET_ID = '171MBi7ENBxNwaVwp4r6d-bIBhSCoKyPZiakB8snK6T4';
 
-function logRawPasteData(email, weekLabel, days, rawPaste) {
+function logRawPasteData(email, weekLabel, lhTotals, rawPaste) {
   try {
     const ss = SpreadsheetApp.openById(AUDIT_LOG_SHEET_ID);
     let sheet = ss.getSheetByName('Paste Data Log');
     if (!sheet) {
       sheet = ss.insertSheet('Paste Data Log');
-      sheet.appendRow(['Timestamp','Email','Week','Days','Raw Pasted Data']);
-      sheet.getRange(1,1,1,5).setFontWeight('bold');
+      sheet.appendRow(['Timestamp','Email','Week','Day','Linehaul','Volume']);
+      sheet.getRange(1,1,1,6).setFontWeight('bold');
       sheet.setFrozenRows(1);
     }
-    sheet.appendRow([new Date(), email || '', weekLabel || '', days || '', rawPaste || '']);
+    const timestamp = new Date();
+    Object.entries(lhTotals || {}).forEach(([day, volByLH]) => {
+      Object.entries(volByLH || {}).forEach(([lh, vol]) => {
+        sheet.appendRow([timestamp, email || '', weekLabel || '', day, lh, vol || 0]);
+      });
+    });
   } catch(e) {
     Logger.log('Paste data log write failed: ' + e.message);
   }
