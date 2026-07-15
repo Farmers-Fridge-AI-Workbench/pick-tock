@@ -36,7 +36,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .nav-tab{padding:0 16px;height:56px;display:flex;align-items:center;font-family:var(--mono);font-size:14px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;transition:all .15s}
 .nav-tab:hover{color:var(--text)}
 .nav-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.nav-tab.admin-tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.nav-tab.admin-tab.active{color:#000;border-bottom-color:#000}
+.nav-tab.contacts-tab{flex-direction:column;justify-content:center;gap:1px;line-height:1.15;font-size:11px;padding:6px 14px;background:#0F52BA;color:#fff;border-radius:6px 6px 0 0}
+.nav-tab.contacts-tab:hover{color:#fff;opacity:.85}
+.nav-tab.contacts-tab.active{background:#0F52BA;color:#fff;border-bottom-color:#fff}
+.nav-tab.schedule-tab{background:var(--green);color:#000;border-radius:6px 6px 0 0}
+.nav-tab.schedule-tab:hover{color:#000;opacity:.85}
+.nav-tab.schedule-tab.active{background:var(--green);color:#000;border-bottom-color:#000}
+.nav-tab.logistics-tab{background:var(--amber);color:#000;border-radius:6px 6px 0 0}
+.nav-tab.logistics-tab:hover{color:#000;opacity:.85}
+.nav-tab.logistics-tab.active{background:var(--amber);color:#000;border-bottom-color:#000}
+.nav-tab.admin-tab{background:var(--teal);color:#000;border-radius:6px 6px 0 0}
+.nav-tab.admin-tab:hover{color:#000;opacity:.85}
 .tab-view{display:none;flex-direction:column;gap:16px}
 .tab-view.active{display:flex}
 .topbar-day-tab{padding:5px 14px;border-radius:5px;border:1px solid transparent;cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:500;transition:all .15s;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2}
@@ -182,6 +193,20 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
 .slack-send-btn:hover{opacity:.85;}
 .slack-dismiss-btn{background:transparent;color:#7eeee4;font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:5px;border:1px solid rgba(45,212,191,0.3);cursor:pointer;transition:opacity .15s;}
 .slack-dismiss-btn:hover{opacity:.7;}
+/* ── OPS UPDATE FLOAT ── */
+.ops-float{position:fixed;bottom:24px;right:24px;z-index:500;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.6));}
+.ops-pill{background:var(--teal);color:#0d1117;font-family:var(--mono);font-size:11px;font-weight:700;padding:10px 16px;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:8px;border:none;transition:opacity .15s;}
+.ops-pill:hover{opacity:.85;}
+.ops-float-header{background:var(--teal);color:#0d1117;font-family:var(--mono);font-size:11px;font-weight:700;padding:9px 14px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between;gap:12px;letter-spacing:.03em;}
+.ops-float-header-btns{display:flex;gap:6px;}
+.ops-float-header-btns button{background:transparent;border:none;color:#0d1117;font-size:13px;cursor:pointer;line-height:1;padding:2px 4px;font-weight:700;}
+.ops-float-body{background:#0e2a28;border:2px solid var(--teal);border-top:none;border-radius:0 0 10px 10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:340px;max-width:420px;max-height:60vh;overflow-y:auto;}
+.ops-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;color:#c9fbf5;}
+.ops-table th{text-align:left;color:#7eeee4;font-weight:700;padding:4px 6px;border-bottom:1px solid rgba(45,212,191,0.3);white-space:nowrap;}
+.ops-table td{padding:5px 6px;border-bottom:1px solid rgba(45,212,191,0.12);vertical-align:top;}
+.ops-risk-ok{color:#4ade80;}
+.ops-risk-warn{color:#fbbf24;}
+.ops-float-actions{display:flex;gap:8px;}
 
 </style>
 </head>
@@ -190,9 +215,10 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
   <header class="topbar">
     <div class="logo">pick<em>tock</em> <span style="color:var(--muted);font-size:13px">⏱</span></div>
     <nav class="nav-tabs">
-      <button class="nav-tab active" id="tab-btn-schedule" onclick="switchTab('schedule',this)">schedule</button>
-      <button class="nav-tab" id="tab-btn-logistics" onclick="switchTab('logistics',this)">logistics</button>
-      <button class="nav-tab" id="tab-btn-accuracy" onclick="switchTab('accuracy',this)">accuracy</button>
+      <button class="nav-tab schedule-tab active" id="tab-btn-schedule" onclick="switchTab('schedule',this)">schedule</button>
+      <button class="nav-tab logistics-tab" id="tab-btn-logistics" onclick="switchTab('logistics',this)">logistics</button>
+      <button class="nav-tab contacts-tab" id="tab-btn-contacts" onclick="switchTab('contacts',this)">linehaul<br>contacts</button>
+      <button class="nav-tab" id="tab-btn-accuracy" style="display:none" onclick="switchTab('accuracy',this)">accuracy</button>
       <span id="adminTabSlot"></span>
     </nav>
     <div id="topbarDayTabs" style="display:flex;gap:4px;align-items:center;margin-left:20px;flex-shrink:0"></div>
@@ -386,10 +412,26 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
     <div class="tab-view" id="tab-logistics">
       <div class="panel">
         <div class="panel-title">
-          <span style="display:flex;align-items:center;gap:8px">recommended truck arrivals — <select class="week-sel" id="logisticsWeekSel" onchange="setLogisticsWeek(this.value)" style="font-size:12px;padding:3px 8px"></select></span>
-          <button class="btn btn-ghost btn-sm" onclick="renderLogistics()">↻ refresh</button>
+          <span>recommended truck arrivals — 2wk back / 8wk ahead</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select class="week-sel" id="logisticsCarrierFilter" onchange="onLogisticsCarrierFilterChange(this.value)" style="font-size:12px;padding:3px 8px">
+              <option value="">all carriers</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="refreshCarrierData()" id="carrierRefreshBtn">↻ refresh carrier data</button>
+          </div>
         </div>
-        <div id="logisticsContent"><div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">Select a week with demand data to see the schedule.</div></div>
+        <div id="carrierPullStatus" style="margin-bottom:8px"></div>
+        <div id="logBulkEmailBar" style="display:none;margin-bottom:8px;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px"></div>
+        <div id="logisticsContent"><div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded yet.</div></div>
+      </div>
+    </div>
+    <div class="tab-view" id="tab-contacts">
+      <div class="panel">
+        <div class="panel-title">
+          <span style="display:flex;align-items:center;gap:8px">linehaul contacts — <select class="week-sel" id="contactsCarrierFilter" onchange="renderContactsTab()" style="font-size:12px;padding:3px 8px"><option value="">all carriers</option></select></span>
+          <div style="display:flex;align-items:center;gap:8px"><span id="contactsLastRefreshed" style="font-size:10px;font-family:var(--mono);color:var(--muted)"></span><button class="btn btn-ghost btn-sm" onclick="loadContactsTab(true)" id="contactsRefreshBtn">↻ refresh</button></div>
+        </div>
+        <div id="contactsContent"><div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">Loading...</div></div>
       </div>
     </div>
     <div class="tab-view" id="tab-accuracy">
@@ -451,13 +493,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
         <div class="admin-grid">
           <div class="panel" style="grid-column:1/-1">
             <div class="panel-title"><span>linehaul schedule</span><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="showAddLHForm()">+ add</button><button class="btn btn-teal btn-sm" onclick="saveLHSchedule()">save changes</button></div></div>
-            <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:10px">CPTs are managed in the CPT Overrides panel below. Edit group and day assignments here.</div>
+            <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:10px">Edit group, CPT, and day assignments here. Use "+ schedule update" below to change any of these starting a future week.</div>
             <div style="margin-bottom:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Scheduled updates</span><button class="btn btn-ghost btn-sm" onclick="openScheduleUpdateModal()">+ schedule update</button></div><div id="scheduleUpdatesList" style="display:flex;flex-direction:column;gap:4px"></div></div>
             <div id="addLHForm" style="display:none;background:var(--surface2);border-radius:6px;padding:12px;margin-bottom:12px">
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
                 <div class="form-row" style="margin:0"><label class="form-label">LH Code</label><input type="text" class="form-input" id="newLhCode" placeholder="e.g. TN"></div>
                 <div class="form-row" style="margin:0"><label class="form-label">Markets (comma sep)</label><input type="text" class="form-input" id="newLhMarkets" placeholder="Nashville"></div>
-                <div class="form-row" style="margin:0"><label class="form-label">CPT (set in overrides)</label><input type="text" class="form-input" id="newLhCpt" placeholder="7:15 PM"></div>
+                <div class="form-row" style="margin:0"><label class="form-label">CPT</label><input type="text" class="form-input" id="newLhCpt" placeholder="7:15 PM"></div>
                 <div style="display:flex;gap:6px"><button class="btn btn-teal btn-sm" onclick="addLinehaul()">Add</button><button class="btn btn-ghost btn-sm" onclick="document.getElementById('addLHForm').style.display='none'">Cancel</button></div>
               </div>
             </div>
@@ -466,13 +508,14 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
           <div class="panel"><div class="panel-title"><span>throughput by day</span><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="fetchThruputs()">↻ refresh from actuals</button><button class="btn btn-teal btn-sm" onclick="saveThruputs()">save</button></div></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:4px">90-day rolling average by day. Capped at 3,000 u/hr/line.</div><div id="thruputUpdatedAt" style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:10px;opacity:.7">Last updated: —</div><table class="thruput-table"><thead><tr><th>Day</th><th style="text-align:right">Units/hr/line</th></tr></thead><tbody id="thruputBody"></tbody></table><div id="thruputFetchStatus" style="margin-top:6px"></div></div>
           <div class="panel"><div class="panel-title"><span>lines per day</span><button class="btn btn-teal btn-sm" onclick="saveLinesPerDay()">save</button></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:10px">Default lines by day. Auto-threshold overrides if set.</div><table class="thruput-table"><thead><tr><th>Day</th><th style="text-align:right">Lines</th></tr></thead><tbody id="linesPerDayBody"></tbody></table></div>
           <div class="panel"><div class="panel-title"><span>auto-lines threshold</span><button class="btn btn-teal btn-sm" onclick="saveThreshold()">save</button></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:10px">Auto-assign lines based on total volume.</div><div id="thresholdRows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div><button class="btn btn-ghost btn-sm" onclick="addThresholdRow()">+ add tier</button></div>
-          <div class="panel"><div class="panel-title"><span>cpt overrides</span><div style="display:flex;gap:6px"><button class="btn btn-teal btn-sm" onclick="saveCPTs()">save</button><button class="btn btn-ghost btn-sm" onclick="resetCPTs()">reset</button></div></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:10px">North star for all CPTs. Enter time as <strong style="color:var(--text)">H:MM AM/PM</strong>. Check <strong style="color:var(--teal)">+1</strong> if the departure is next-day (after midnight).</div><div id="cptControls" style="display:flex;flex-direction:column;gap:4px"></div><div id="cptSaveStatus" style="margin-top:6px"></div></div>
+
 
           <div class="panel"><div class="panel-title"><span>labor config</span><button class="btn btn-teal btn-sm" onclick="saveLaborConfig()">save</button></div><table class="thruput-table"><thead><tr><th>Position</th><th style="text-align:right">Count</th></tr></thead><tbody><tr><td style="font-family:var(--mono)">Emp/Line</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-empline" value="12" min="1" max="30" step="1" style="width:60px"></td></tr><tr><td style="font-family:var(--mono)">Replenisher</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-replen" value="2" min="0" max="10" step="1" style="width:60px"></td></tr><tr><td style="font-family:var(--mono)">Leads</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-leads" value="2" min="0" max="10" step="1" style="width:60px"></td></tr><tr><td style="font-family:var(--mono)">Box Builders</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-boxbuild" value="2" min="0" max="10" step="1" style="width:60px"></td></tr><tr style="border-top:.5px solid var(--border2)"><td style="font-family:var(--mono)">Avg Hourly Rate</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-rate" value="24.39" min="0" step="0.25" style="width:70px"></td></tr></tbody></table></div>
           <div class="panel"><div class="panel-title">change pin</div><div class="form-row"><label class="form-label">Current PIN</label><input type="password" class="form-input" id="pinCurrent" placeholder="••••" maxlength="8" style="width:160px"></div><div class="form-row"><label class="form-label">New PIN</label><input type="password" class="form-input" id="pinNew" placeholder="••••" maxlength="8" style="width:160px"></div><div class="form-row"><label class="form-label">Confirm new PIN</label><input type="password" class="form-input" id="pinConfirm" placeholder="••••" maxlength="8" style="width:160px"></div><button class="btn btn-teal btn-sm" onclick="changePin()">Update PIN</button><div id="pinChangeStatus" style="margin-top:8px"></div></div>
           <div class="panel"><div class="panel-title"><span>chicago volume split</span><button class="btn btn-teal btn-sm" onclick="saveChicagoSplit()">save</button></div><table class="thruput-table"><thead><tr><th>Linehaul</th><th style="text-align:right">% of Chicago vol</th></tr></thead><tbody><tr><td style="font-family:var(--mono)">IL PM</td><td style="text-align:right"><input type="number" class="thruput-input" id="cs-ilpm" value="60" min="0" max="100" step="1" style="width:60px"> %</td></tr><tr><td style="font-family:var(--mono)">IL AM</td><td style="text-align:right"><input type="number" class="thruput-input" id="cs-ilam" value="40" min="0" max="100" step="1" style="width:60px"> %</td></tr></tbody></table><div id="chicagoSplitStatus" style="margin-top:6px"></div></div>
           <div class="panel"><div class="panel-title">admin users</div><div id="adminUsersList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div><div style="display:flex;gap:8px;align-items:center"><input type="text" class="form-input" id="newAdminEmail" placeholder="email@farmersfridge.com" style="flex:1"><button class="btn btn-teal btn-sm" onclick="addAdminUser()">Add</button></div><div id="adminUsersStatus" style="margin-top:8px"></div></div>
           <div class="panel"><div class="panel-title"><span>approval access</span><button class="btn btn-teal btn-sm" onclick="saveApproverUsers()">save</button></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:12px">Emails listed here can approve their department's row without admin access. Planning approvers can approve all three.</div><div id="approverPanelBody" style="display:flex;flex-direction:column;gap:14px"></div><div id="approverSaveStatus" style="margin-top:8px"></div></div>
+          <div class="panel"><div class="panel-title"><span>carrier emails</span><button class="btn btn-ghost btn-sm" onclick="refreshCarrierEmails()" id="carrierEmailsRefreshBtn">↻ pull from Carrier Contacts</button></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:12px">Auto-pulled daily from the Linehaul Schedule sheet's Carrier Contacts tab (Carrier / Broker + Primary Email columns). Manually-added entries below are never overwritten by the pull. Carrier name must match what's shown on the Logistics tab.</div><div id="carrierEmailsBody" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div><div style="display:flex;gap:6px;align-items:center"><input type="text" class="form-input" id="newCarrierName" placeholder="Carrier name (e.g. Marten)" style="flex:1;font-size:11px;padding:5px 8px"><input type="text" class="form-input" id="newCarrierEmail" placeholder="dispatch@carrier.com" style="flex:1;font-size:11px;padding:5px 8px"><button class="btn btn-teal btn-sm" onclick="addCarrierEmail()">add</button></div><div id="carrierEmailsStatus" style="margin-top:8px"></div></div>
 
         </div>
         <div class="panel" style="border-color:rgba(239,68,68,0.2)"><div class="panel-title" style="color:var(--red)">data management</div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-danger btn-sm" onclick="clearDemandData()">Clear demand data</button><button class="btn btn-danger btn-sm" onclick="resetAllData()">Reset to defaults</button></div></div>
@@ -488,7 +531,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
 <div class="modal-overlay" id="featureModal"><div class="modal-box" style="width:420px;text-align:left"><div style="font-size:24px;text-align:center">💡</div><div class="modal-title" style="text-align:center">Request a Feature</div><div class="form-row"><label class="form-label">Your Email</label><input type="text" class="form-input" id="fr-email" placeholder="your@email.com"></div><div class="form-row"><label class="form-label">Date</label><input type="text" class="form-input" id="fr-date" readonly style="opacity:.6"></div><div class="form-row"><label class="form-label">What would you like to see?</label><textarea class="form-textarea" id="fr-request" placeholder="Describe your feature request..." style="min-height:100px"></textarea></div><div class="form-row" style="margin-bottom:0"><label class="form-label">Urgency</label><select class="form-input" id="fr-urgency" style="width:160px"><option value="Low">Low</option><option value="Medium" selected>Medium</option><option value="High">High</option></select></div><div id="fr-status" style="min-height:16px;margin-top:4px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn btn-ghost" onclick="closeFeatureModal()">Cancel</button><button class="btn btn-teal" onclick="submitFeatureReq()">Submit</button></div></div></div>
 
 <!-- SCHEDULE UPDATE MODAL -->
-<div class="modal-overlay" id="scheduleUpdateModal"><div class="modal-box" style="width:720px;max-width:95vw;max-height:90vh;overflow-y:auto;text-align:left;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="modal-title">Schedule Update</div><button onclick="closeScheduleUpdateModal()" style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1">✕</button></div><div style="font-size:11px;font-family:var(--mono);color:var(--muted)">This schedule will apply from the selected week onward, until another scheduled update takes effect.</div><div style="display:flex;align-items:center;gap:10px"><label style="font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Effective from</label><select id="schedUpdWeekSel" class="form-input" style="width:180px" onchange="checkHolidayConflicts(this.value)"></select></div><div id="schedUpdHolidayWarning" style="display:none;padding:8px 12px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:6px;font-size:11px;font-family:var(--mono);color:var(--amber);line-height:1.6"></div><div style="overflow-x:auto"><table class="admin-table" style="font-size:11px"><thead><tr><th>Linehaul</th><th>Group</th><th style="text-align:center">Mon</th><th style="text-align:center">Tue</th><th style="text-align:center">Wed</th><th style="text-align:center">Thu</th><th style="text-align:center">Fri</th><th style="text-align:center">Sat</th><th style="text-align:center">Sun</th></tr></thead><tbody id="schedUpdLHBody"></tbody></table></div><div id="schedUpdStatus" style="min-height:14px;font-size:11px;font-family:var(--mono)"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeScheduleUpdateModal()">Cancel</button><button class="btn btn-teal" onclick="saveScheduleUpdate()">Save update</button></div></div></div>
+<!-- CARRIER EDIT MODAL -->
+<div class="modal-overlay" id="carrierEditModal"><div class="modal-box" style="width:360px;text-align:left;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="modal-title">Edit Carrier / Load #</div><button onclick="closeCarrierEditModal()" style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1">✕</button></div><div id="carrierEditLabel" style="font-size:11px;font-family:var(--mono);color:var(--muted)"></div><div class="form-row"><label class="form-label">Carrier</label><input type="text" class="form-input" id="ceCarrierInput" placeholder="e.g. Marten"></div><div class="form-row" style="margin-bottom:0"><label class="form-label">Load Number</label><input type="text" class="form-input" id="ceLoadInput" placeholder="e.g. TN20260831"></div><div id="carrierEditStatus" style="min-height:14px;font-size:11px;font-family:var(--mono)"></div><div style="display:flex;gap:8px;justify-content:space-between;align-items:center"><button class="btn btn-ghost btn-sm" id="ceRevertBtn" style="display:none" onclick="revertCarrierEdit()">↺ revert to pulled value</button><div style="display:flex;gap:8px;margin-left:auto"><button class="btn btn-ghost" onclick="closeCarrierEditModal()">Cancel</button><button class="btn btn-teal" onclick="saveCarrierEdit()">Save</button></div></div></div></div>
+
+<!-- EMAIL CARRIER MODAL -->
+<div class="modal-overlay" id="emailCarrierModal"><div class="modal-box" style="width:520px;max-width:95vw;text-align:left;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="modal-title">Email Carrier</div><button onclick="closeEmailCarrierModal()" style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1">✕</button></div><div id="ecNoEmailWarning" style="display:none;padding:8px 12px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:6px;font-size:11px;font-family:var(--mono);color:var(--amber)">No email on file for this carrier — enter one below, or add it permanently in Admin → Carrier Emails.</div><div class="form-row"><label class="form-label">To</label><input type="text" class="form-input" id="ecToInput" placeholder="dispatch@carrier.com"></div><div class="form-row"><label class="form-label">Subject</label><input type="text" class="form-input" id="ecSubjectInput"></div><div class="form-row" style="margin-bottom:0"><label class="form-label">Message</label><textarea class="form-textarea" id="ecBodyInput" style="min-height:160px"></textarea></div><div id="emailCarrierStatus" style="min-height:14px;font-size:11px;font-family:var(--mono)"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeEmailCarrierModal()">Cancel</button><button class="btn btn-teal" onclick="sendCarrierEmailFromModal()">Send</button></div></div></div>
+
+<div class="modal-overlay" id="scheduleUpdateModal"><div class="modal-box" style="width:720px;max-width:95vw;max-height:90vh;overflow-y:auto;text-align:left;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between"><div class="modal-title">Schedule Update</div><button onclick="closeScheduleUpdateModal()" style="background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1">✕</button></div><div style="font-size:11px;font-family:var(--mono);color:var(--muted)">This schedule will apply from the selected week onward, until another scheduled update takes effect.</div><div style="display:flex;align-items:center;gap:10px"><label style="font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Effective from</label><select id="schedUpdWeekSel" class="form-input" style="width:180px" onchange="checkHolidayConflicts(this.value)"></select></div><div id="schedUpdHolidayWarning" style="display:none;padding:8px 12px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:6px;font-size:11px;font-family:var(--mono);color:var(--amber);line-height:1.6"></div><div style="overflow-x:auto"><table class="admin-table" style="font-size:11px"><thead><tr><th>Linehaul</th><th>Group</th><th>CPT</th><th style="text-align:center">Mon</th><th style="text-align:center">Tue</th><th style="text-align:center">Wed</th><th style="text-align:center">Thu</th><th style="text-align:center">Fri</th><th style="text-align:center">Sat</th><th style="text-align:center">Sun</th></tr></thead><tbody id="schedUpdLHBody"></tbody></table></div><div id="schedUpdStatus" style="min-height:14px;font-size:11px;font-family:var(--mono)"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeScheduleUpdateModal()">Cancel</button><button class="btn btn-teal" onclick="saveScheduleUpdate()">Save update</button></div></div></div>
 
 <!-- HOLIDAY OVERRIDE MODAL -->
 <div class="modal-overlay" id="holidayModal">
@@ -524,6 +573,9 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
 <script>
 let ADMIN_PIN='1234';
 let _pendingTab=null,_pendingBtn=null;
+let _cePending=null,_ecPending=null;
+let _logSelected=new Set(),_logSelectedCarrier=null,_logScrolledToToday=false;
+let _linehaulContacts=null;
 let _pollInterval=null,_lastModified=null;
 const DEFAULT_ALLOC_START=18.25;
 const DEFAULT_PICK_START=16.5;
@@ -532,7 +584,7 @@ function takeSnapshot(){const btn=document.getElementById('snapBtn');btn.textCon
 function fallbackDownload(canvas,btn){const a=document.createElement('a');a.download='picktock-'+new Date().toISOString().slice(0,10)+'.png';a.href=canvas.toDataURL('image/png');a.click();btn.textContent='⬇ downloaded';setTimeout(()=>{btn.textContent='📸 copy snapshot';btn.disabled=false;},2000);}
 function startPolling(){if(_pollInterval)return;_pollInterval=setInterval(pollForChanges,5000);}
 function stopPolling(){if(_pollInterval){clearInterval(_pollInterval);_pollInterval=null;}}
-function pollForChanges(){google.script.run.withSuccessHandler(ts=>{if(!ts)return;if(_lastModified&&ts!==_lastModified){document.getElementById('syncIndicator').style.display='';google.script.run.withSuccessHandler(s=>{document.getElementById('syncIndicator').style.display='none';if(!s)return;_lastModified=s.lastModified||_lastModified;const prevDay=STATE.currentDay;if(s.lhSchedule)STATE.lhSchedule=s.lhSchedule;if(s.thruputs)STATE.thruputs=s.thruputs;if(s.lines)STATE.lines=s.lines;if(s.lineThreshold)STATE.lineThreshold=s.lineThreshold;if(s.laborConfig)STATE.laborConfig=s.laborConfig;if(s.chicagoSplit)STATE.chicagoSplit=s.chicagoSplit;if(s.lhScheduleUpdates)STATE.lhScheduleUpdates=s.lhScheduleUpdates;if(s.demands)STATE.demands=s.demands;if(s.thruputUpdatedAt)STATE.thruputUpdatedAt=s.thruputUpdatedAt;if(s.cptOverrides)STATE.cptOverrides=s.cptOverrides;if(prevDay&&STATE.demands[STATE.currentWeek]?.[prevDay])STATE.currentDay=prevDay;renderWeekSel();renderDayTabs();buildCPTControls();loadDayLevers();updateLabels();if(document.getElementById('tab-logistics').classList.contains('active'))renderLogistics();}).withFailureHandler(()=>{document.getElementById('syncIndicator').style.display='none';}).getState();}else{_lastModified=ts;}}).withFailureHandler(()=>{}).getLastModified();}
+function pollForChanges(){google.script.run.withSuccessHandler(ts=>{if(!ts)return;if(_lastModified&&ts!==_lastModified){document.getElementById('syncIndicator').style.display='';google.script.run.withSuccessHandler(s=>{document.getElementById('syncIndicator').style.display='none';if(!s)return;_lastModified=s.lastModified||_lastModified;const prevDay=STATE.currentDay;if(s.lhSchedule)STATE.lhSchedule=s.lhSchedule;if(s.thruputs)STATE.thruputs=s.thruputs;if(s.lines)STATE.lines=s.lines;if(s.lineThreshold)STATE.lineThreshold=s.lineThreshold;if(s.laborConfig)STATE.laborConfig=s.laborConfig;if(s.chicagoSplit)STATE.chicagoSplit=s.chicagoSplit;if(s.lhScheduleUpdates)STATE.lhScheduleUpdates=s.lhScheduleUpdates;if(s.demands)STATE.demands=s.demands;if(s.thruputUpdatedAt)STATE.thruputUpdatedAt=s.thruputUpdatedAt;if(s.cptOverrides)STATE.cptOverrides=s.cptOverrides;if(prevDay&&STATE.demands[STATE.currentWeek]?.[prevDay])STATE.currentDay=prevDay;renderWeekSel();renderDayTabs();loadDayLevers();updateLabels();if(document.getElementById('tab-logistics').classList.contains('active'))renderLogistics();}).withFailureHandler(()=>{document.getElementById('syncIndicator').style.display='none';}).getState();}else{_lastModified=ts;}}).withFailureHandler(()=>{}).getLastModified();}
 const DEFAULT_LH_SCHEDULE=[{lh:'TN',group:'MW',markets:['Nashville'],cpt:19.25,days:{Mon:false,Tue:false,Wed:true,Thu:false,Fri:true,Sat:false,Sun:false}},{lh:'MN',group:'MW',markets:['Minneapolis'],cpt:20.5,days:{Mon:true,Tue:false,Wed:false,Thu:true,Fri:false,Sat:false,Sun:true}},{lh:'IL PM',group:'MW',markets:['Chicago'],cpt:21.0,days:{Mon:true,Tue:true,Wed:true,Thu:true,Fri:true,Sat:true,Sun:true}},{lh:'WI (MKE, MAD)',group:'MW',markets:['Milwaukee'],cpt:21.0,days:{Mon:true,Tue:true,Wed:true,Thu:true,Fri:true,Sat:false,Sun:false}},{lh:'MI',group:'MW',markets:['Detroit','Cleveland','Pittsburgh'],cpt:22.0,days:{Mon:false,Tue:true,Wed:false,Thu:true,Fri:false,Sat:true,Sun:false}},{lh:'INDY (IND, OH)',group:'MW',markets:['Indianapolis','Columbus','Cincinnati'],cpt:22.5,days:{Mon:true,Tue:false,Wed:false,Thu:true,Fri:false,Sat:true,Sun:true}},{lh:'STL',group:'MW',markets:['St. Louis'],cpt:23.5,days:{Mon:false,Tue:false,Wed:true,Thu:false,Fri:false,Sat:true,Sun:false}},{lh:'IL AM',group:'MW',markets:['Chicago'],cpt:28.5,days:{Mon:true,Tue:true,Wed:true,Thu:true,Fri:true,Sat:true,Sun:true}},{lh:'S (DAL, HOU, AUS, SAT)',group:'Non-MW',markets:['Dallas','Houston','Austin','San Antonio'],cpt:23.5,days:{Mon:true,Tue:false,Wed:true,Thu:false,Fri:true,Sat:false,Sun:false}},{lh:'NE',group:'Non-MW',markets:['Boston','New Jersey','New York City','Philadelphia','DC / Baltimore'],cpt:23.483,days:{Mon:true,Tue:true,Wed:true,Thu:false,Fri:true,Sat:true,Sun:true}},{lh:'W (LA, SD)',group:'Non-MW',markets:['Los Angeles','San Diego','Las Vegas'],cpt:28.0,days:{Mon:false,Tue:true,Wed:false,Thu:true,Fri:false,Sat:true,Sun:true}},];
 const DEFAULT_THRUPUTS={Monday:2920,Tuesday:3031,Wednesday:3053,Thursday:2478,Friday:2855,Saturday:2545,Sunday:3071};
 const DEFAULT_LINES={Monday:2,Tuesday:2,Wednesday:2,Thursday:2,Friday:2,Saturday:2,Sunday:2};
@@ -540,23 +592,49 @@ let MARKET_LH_MAP={}; // single source of truth lives in Code.js — fetched via
 const DAYS_ORDER=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const DAY_SHORT={Monday:'Mon',Tuesday:'Tue',Wednesday:'Wed',Thursday:'Thu',Friday:'Fri',Saturday:'Sat',Sunday:'Sun'};
 const LH_COLORS={'IL PM':'#4ade80','IL AM':'#4f8ef7','NE':'#f97316','S (DAL, HOU, AUS, SAT)':'#f59e0b','W (LA, SD)':'#a78bfa','WI (MKE, MAD)':'#06b6d4','MI':'#ef4444','MN':'#ec4899','INDY (IND, OH)':'#2dd4bf','STL':'#fb923c','TN':'#84cc16'};
-let STATE={lhSchedule:JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE)),thruputs:{...DEFAULT_THRUPUTS},lines:{...DEFAULT_LINES},lineThreshold:[{vol:47000,lines:3}],laborConfig:{empPerLine:12,replenisher:2,leads:2,boxBuilders:2,hourlyRate:24.39},chicagoSplit:{ilPm:0.60,ilAm:0.40},demands:{},cptOverrides:{},lhScheduleUpdates:[],currentWeek:null,currentDay:null,currentLines:2,adminUnlocked:false,approverDepts:[],thruputUpdatedAt:null,break30:{enabled:true,time:null},break15:{enabled:true,time:null},logisticsWeek:null,_currentUserEmail:''};
+let STATE={lhSchedule:JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE)),thruputs:{...DEFAULT_THRUPUTS},lines:{...DEFAULT_LINES},lineThreshold:[{vol:47000,lines:3}],laborConfig:{empPerLine:12,replenisher:2,leads:2,boxBuilders:2,hourlyRate:24.39},chicagoSplit:{ilPm:0.60,ilAm:0.40},demands:{},cptOverrides:{},lhScheduleUpdates:[],currentWeek:null,currentDay:null,currentLines:2,adminUnlocked:false,approverDepts:[],thruputUpdatedAt:null,break30:{enabled:true,time:null},break15:{enabled:true,time:null},logisticsWeek:null,logisticsCarrierFilter:'',carrierEmails:{},_currentUserEmail:''};
 function parseTimeStr(s){if(!s)return null;s=s.trim();const m=s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);if(!m)return null;let h=parseInt(m[1]),min=parseInt(m[2]);const ap=m[3].toUpperCase();if(h<1||h>12||min<0||min>59)return null;if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h+min/60;}
 function toTimeStr(h){const norm=h>=24?h-24:h;const tm=Math.round(norm*60),hh=Math.floor(tm/60)%24,mm=tm%60,ap=hh>=12?'PM':'AM';return`${hh%12||12}:${String(mm).padStart(2,'0')} ${ap}`;}
-function applyCPTRow(lh,timeInputEl,plus1El){const raw=timeInputEl.value.trim();const base=parseTimeStr(raw);if(base===null){timeInputEl.classList.add('invalid');return;}timeInputEl.classList.remove('invalid');const val=plus1El.checked?base+24:base;STATE.cptOverrides[lh]=val;renderLHScheduleTable();renderAll();}
-function buildCPTControls(){const cont=document.getElementById('cptControls');if(!cont)return;cont.innerHTML=STATE.lhSchedule.map(l=>{const cur=STATE.cptOverrides[l.lh]!==undefined?STATE.cptOverrides[l.lh]:l.cpt;const isPlus1=cur>=24;const timeStr=toTimeStr(cur);const lhSafe=l.lh.replace(/'/g,"\\'");return`<div class="cpt-override-row" id="cpt-row-${CSS.escape(l.lh)}"><span style="flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.lh}</span><input type="text" class="cpt-time-input" id="cpt-time-${CSS.escape(l.lh)}" value="${timeStr}" placeholder="9:00 PM" onchange="applyCPTRow('${lhSafe}',this,document.getElementById('cpt-p1-${lhSafe}'))"><label class="cpt-plus1-label" title="Check if CPT is next day (after midnight)"><input type="checkbox" id="cpt-p1-${lhSafe}" ${isPlus1?'checked':''} onchange="applyCPTRow('${lhSafe}',document.getElementById('cpt-time-${lhSafe}'),this)"> +1</label></div>`;}).join('');}
-function resetCPTs(){STATE.lhSchedule.forEach(l=>{STATE.cptOverrides[l.lh]=l.cpt;});google.script.run.withFailureHandler(()=>{}).saveCptOverrides(STATE.cptOverrides);buildCPTControls();renderAll();}
-function saveCPTs(){const status=document.getElementById('cptSaveStatus');status.innerHTML='<div class="status-bar status-info"><span class="spinner"></span>Saving...</div>';STATE.lhSchedule.forEach(l=>{const timeEl=document.getElementById('cpt-time-'+CSS.escape(l.lh));const plus1El=document.getElementById('cpt-p1-'+l.lh);if(timeEl&&plus1El){const base=parseTimeStr(timeEl.value.trim());if(base!==null)STATE.cptOverrides[l.lh]=plus1El.checked?base+24:base;}});google.script.run.withSuccessHandler(()=>{google.script.run.withSuccessHandler(s=>{if(s&&s.cptOverrides)STATE.cptOverrides=s.cptOverrides;buildCPTControls();renderLHScheduleTable();renderAll();status.innerHTML='<div class="status-bar status-ok">✓ CPTs saved</div>';setTimeout(()=>status.innerHTML='',3000);}).withFailureHandler(()=>{buildCPTControls();renderLHScheduleTable();renderAll();status.innerHTML='<div class="status-bar status-ok">✓ CPTs saved</div>';setTimeout(()=>status.innerHTML='',3000);}).getState();}).withFailureHandler(err=>{status.innerHTML=`<div class="status-bar status-err">Save failed: ${err.message}</div>`;}).saveCptOverrides(STATE.cptOverrides);}
+// One-time migration: cptOverrides used to be the "real" CPT (it almost always won
+// over lhSchedule.cpt). Fold any override values into lhSchedule.cpt so nothing
+// silently reverts once the standalone CPT Overrides panel is gone. Idempotent —
+// only writes back if something actually changed, and only if an admin is present
+// to authorize the save (saveLhSchedule requires admin).
+function migrateCptOverridesIntoSchedule(){
+  if(!STATE.cptOverrides||!Object.keys(STATE.cptOverrides).length)return;
+  let changed=false;
+  STATE.lhSchedule.forEach(l=>{
+    if(STATE.cptOverrides[l.lh]!==undefined&&STATE.cptOverrides[l.lh]!==l.cpt){
+      l.cpt=STATE.cptOverrides[l.lh];
+      changed=true;
+    }
+  });
+  if(changed&&STATE.adminUnlocked){
+    google.script.run.withFailureHandler(()=>{}).saveLhSchedule(STATE.lhSchedule);
+  }
+}
+
 window.onload=function(){
   google.script.run.withSuccessHandler(p=>{if(p)ADMIN_PIN=p;}).withFailureHandler(()=>{}).getPin();
   google.script.run.withSuccessHandler(m=>{if(m)MARKET_LH_MAP=m;}).withFailureHandler(()=>{}).getMarketLhMap();
+  google.script.run.withSuccessHandler(m=>{STATE.carrierEmails=m||{};if(document.getElementById('tab-logistics').classList.contains('active'))renderLogistics();}).withFailureHandler(()=>{}).getCarrierEmails();
   google.script.run.withSuccessHandler(user=>{
     if(user&&user.email)STATE._currentUserEmail=user.email;
     if(user&&user.isAdmin){STATE.adminUnlocked=true;_realAdminUnlocked=true;renderAdminTab();updateAllocUI();loadApprovalUI();}
     if(user&&user.approverDepts&&user.approverDepts.length){STATE.approverDepts=user.approverDepts;_realApproverDepts=user.approverDepts.slice();loadApprovalUI();}
+    updateAccuracyTabVisibility();
   }).withFailureHandler(()=>{}).getCurrentUser();
-  google.script.run.withSuccessHandler(s=>{if(s){if(s.lhSchedule)STATE.lhSchedule=s.lhSchedule;if(s.thruputs)STATE.thruputs=s.thruputs;if(s.lines)STATE.lines=s.lines;if(s.lineThreshold)STATE.lineThreshold=s.lineThreshold;if(s.laborConfig)STATE.laborConfig=s.laborConfig;if(s.chicagoSplit)STATE.chicagoSplit=s.chicagoSplit;if(s.lhScheduleUpdates)STATE.lhScheduleUpdates=s.lhScheduleUpdates||[];if(s.demands)STATE.demands=s.demands;if(s.thruputUpdatedAt)STATE.thruputUpdatedAt=s.thruputUpdatedAt;if(s.cptOverrides&&Object.keys(s.cptOverrides).length){STATE.cptOverrides=s.cptOverrides;}if(!STATE.cptOverrides||!Object.keys(STATE.cptOverrides).length){STATE.cptOverrides={};STATE.lhSchedule.forEach(l=>STATE.cptOverrides[l.lh]=l.cpt);}}if(!STATE.lines)STATE.lines={...DEFAULT_LINES};const weeks=Object.keys(STATE.demands).sort();if(weeks.length){const todayStr=new Date().toISOString().slice(0,10);const todayName=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];const jan1=new Date(new Date().getFullYear(),0,1);const todayWk=Math.ceil((((new Date()-jan1)/86400000)+jan1.getDay()+1)/7);const todayWkLabel='W'+String(todayWk).padStart(2,'0')+'-'+new Date().getFullYear();let foundWeek=null,foundDay=null;for(const w of weeks){for(const[day,data]of Object.entries(STATE.demands[w])){if(data.date===todayStr){foundWeek=w;foundDay=day;break;}}if(foundWeek)break;}if(!foundWeek){const sw=weeks.slice().sort();foundWeek=sw.filter(w=>w<=todayWkLabel).pop()||sw[0];}STATE.currentWeek=foundWeek;if(!foundDay){const days=getAvailableDays(STATE.currentWeek);foundDay=days.includes(todayName)?todayName:(days.find(d=>{const vol=STATE.demands[STATE.currentWeek]?.[d]?.vol||{};return Object.values(vol).some(v=>v>0);})||days[0]||null);}STATE.currentDay=foundDay;if(STATE.currentDay)STATE.currentLines=autoLines(STATE.currentDay)||(STATE.lines&&STATE.lines[STATE.currentDay])||2;}document.getElementById('noDataSub').textContent=Object.keys(STATE.demands).length?'Select a day above':'Go to Admin ⚙ to load demand data';_lastModified=s?.lastModified||null;renderWeekSel();renderDayTabs();buildCPTControls();updateModeDisplay();loadDayLevers();updateLabels();startPolling();}).withFailureHandler(err=>{document.getElementById('noDataSub').textContent='Error loading: '+err.message;}).getState();};
+  google.script.run.withSuccessHandler(s=>{if(s){if(s.lhSchedule)STATE.lhSchedule=s.lhSchedule;if(s.thruputs)STATE.thruputs=s.thruputs;if(s.lines)STATE.lines=s.lines;if(s.lineThreshold)STATE.lineThreshold=s.lineThreshold;if(s.laborConfig)STATE.laborConfig=s.laborConfig;if(s.chicagoSplit)STATE.chicagoSplit=s.chicagoSplit;if(s.lhScheduleUpdates)STATE.lhScheduleUpdates=s.lhScheduleUpdates||[];if(s.demands)STATE.demands=s.demands;if(s.thruputUpdatedAt)STATE.thruputUpdatedAt=s.thruputUpdatedAt;if(s.cptOverrides)STATE.cptOverrides=s.cptOverrides;migrateCptOverridesIntoSchedule();}if(!STATE.lines)STATE.lines={...DEFAULT_LINES};const weeks=Object.keys(STATE.demands).sort();if(weeks.length){const todayStr=new Date().toISOString().slice(0,10);const todayName=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];const jan1=new Date(new Date().getFullYear(),0,1);const todayWk=Math.ceil((((new Date()-jan1)/86400000)+jan1.getDay()+1)/7);const todayWkLabel='W'+String(todayWk).padStart(2,'0')+'-'+new Date().getFullYear();let foundWeek=null,foundDay=null;for(const w of weeks){for(const[day,data]of Object.entries(STATE.demands[w])){if(data.date===todayStr){foundWeek=w;foundDay=day;break;}}if(foundWeek)break;}if(!foundWeek){const sw=weeks.slice().sort();foundWeek=sw.filter(w=>w<=todayWkLabel).pop()||sw[0];}STATE.currentWeek=foundWeek;if(!foundDay){const days=getAvailableDays(STATE.currentWeek);foundDay=days.includes(todayName)?todayName:(days.find(d=>{const vol=STATE.demands[STATE.currentWeek]?.[d]?.vol||{};return Object.values(vol).some(v=>v>0);})||days[0]||null);}STATE.currentDay=foundDay;if(STATE.currentDay)STATE.currentLines=autoLines(STATE.currentDay)||(STATE.lines&&STATE.lines[STATE.currentDay])||2;}document.getElementById('noDataSub').textContent=Object.keys(STATE.demands).length?'Select a day above':'Go to Admin ⚙ to load demand data';_lastModified=s?.lastModified||null;renderWeekSel();renderDayTabs();updateModeDisplay();loadDayLevers();updateLabels();startPolling();}).withFailureHandler(err=>{document.getElementById('noDataSub').textContent='Error loading: '+err.message;}).getState();};
 function renderAdminTab(){document.getElementById('adminTabSlot').innerHTML=`<button class="nav-tab admin-tab" id="tab-btn-admin" onclick="requirePin('admin',this)">admin ⚙</button>`;}
+function updateAccuracyTabVisibility(){
+  const btn=document.getElementById('tab-btn-accuracy');
+  if(!btn)return;
+  const canSee=STATE.adminUnlocked||STATE.approverDepts.includes('logistics');
+  btn.style.display=canSee?'':'none';
+  if(!canSee&&document.getElementById('tab-accuracy').classList.contains('active')){
+    switchTab('schedule',document.getElementById('tab-btn-schedule'));
+  }
+}
 function getDayLevers(){const saved=STATE.demands[STATE.currentWeek]?.[STATE.currentDay]?.levers||{};return{uph:'uph' in saved?saved.uph:(STATE.thruputs[STATE.currentDay]||DEFAULT_UPH_FALLBACK),pickStart:'pickStart' in saved?saved.pickStart:DEFAULT_PICK_START,allocStart:'allocStart' in saved?saved.allocStart:DEFAULT_ALLOC_START,break30:'break30' in saved?saved.break30:{enabled:true,time:null},break15:'break15' in saved?saved.break15:{enabled:true,time:null}};}
 function loadDayLevers(){if(!STATE.currentDay)return;const lv=getDayLevers();document.getElementById('upmSlider').value=lv.uph;const ph=Math.floor(lv.pickStart),pm=Math.round((lv.pickStart-ph)*60);document.getElementById('pickStartInput').value=String(ph).padStart(2,'0')+':'+String(pm).padStart(2,'0');const hh=Math.floor(lv.allocStart),mm=Math.round((lv.allocStart-hh)*60);document.getElementById('allocTimeInput').value=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');document.getElementById('allocReadOnly').textContent=ft(lv.allocStart);updateAllocUI();loadApprovalUI();loadHolidayOverrideUI();STATE.break30=lv.break30||{enabled:true,time:null};STATE.break15=lv.break15||{enabled:true,time:null};renderBreakToggles();}
 function onLeverInput(){_saveLeversSilent(false);updateLabels();}
@@ -639,7 +717,7 @@ function buildHolCptRows(savedCpts,savedActiveLHs){
   cont.innerHTML=STATE.lhSchedule.map(l=>{
     const hasVol=(volByLH[l.lh]||0)>0;
     const isChecked=savedActiveLHs?savedActiveLHs.includes(l.lh):hasVol;
-    const cur=savedCpts[l.lh]!==undefined?savedCpts[l.lh]:(STATE.cptOverrides[l.lh]!==undefined?STATE.cptOverrides[l.lh]:l.cpt);
+    const cur=savedCpts[l.lh]!==undefined?savedCpts[l.lh]:l.cpt;
     const isPlus1=cur>=24;
     const timeStr=toTimeStr(cur);
     const lhSafe=CSS.escape(l.lh);
@@ -693,7 +771,7 @@ function getInitialsFromEmail(email){if(!email)return'?';const local=email.split
 function parseCptStr(s){if(!s)return null;s=s.trim();const plus1=s.includes('+1');s=s.replace('+1','').trim();const ampm=s.match(/(AM|PM)/i);const parts=s.replace(/(AM|PM)/gi,'').trim().split(':');let h=parseInt(parts[0]),m=parseInt(parts[1]||0);if(ampm){const ap=ampm[0].toUpperCase();if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;}if(plus1)h+=24;return h+m/60;}
 function getLHScheduleForWeek(week){if(!STATE.lhScheduleUpdates||!STATE.lhScheduleUpdates.length)return STATE.lhSchedule;const applicable=STATE.lhScheduleUpdates.filter(u=>u.startWeek<=week).sort((a,b)=>b.startWeek.localeCompare(a.startWeek));return applicable.length?applicable[0].schedule:STATE.lhSchedule;}
 function getMW(week){const sched=week?getLHScheduleForWeek(week):STATE.lhSchedule;return new Set(sched.filter(l=>l.group==='MW').map(l=>l.lh))}
-function getCPT(lh,day){const hov=STATE.demands[STATE.currentWeek]?.[day||STATE.currentDay]?.holidayOverride;if(hov?.active&&hov.cpts&&hov.cpts[lh]!==undefined)return hov.cpts[lh];if(STATE.cptOverrides[lh]!==undefined)return STATE.cptOverrides[lh];const sched=getLHScheduleForWeek(STATE.currentWeek);return(sched.find(l=>l.lh===lh)||{cpt:23}).cpt;}
+function getCPT(lh,day){const hov=STATE.demands[STATE.currentWeek]?.[day||STATE.currentDay]?.holidayOverride;if(hov?.active&&hov.cpts&&hov.cpts[lh]!==undefined)return hov.cpts[lh];const sched=getLHScheduleForWeek(STATE.currentWeek);return(sched.find(l=>l.lh===lh)||{cpt:23}).cpt;}
 function getP(){const ps=getPickStartVal();const hov=STATE.demands[STATE.currentWeek]?.[STATE.currentDay]?.holidayOverride;const lines=(hov?.active&&hov.lines)?hov.lines:(STATE.currentLines||2);return{lines,uph:+document.getElementById('upmSlider').value,startH:Math.min(16,Math.floor(ps)),shiftLen:10,pickStart:ps,mwStart:getAllocStart()};}
 function fmtUpdatedAt(iso){if(!iso)return'Last updated: —';const d=new Date(iso);return'Last updated: '+d.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});}
 function getUndoSteps(){return STATE.demands[STATE.currentWeek]?.[STATE.currentDay]?.history?.length||0;}
@@ -736,63 +814,339 @@ function onBreak30TimeChange(){const v=document.getElementById('break30TimeInput
 function onBreak15TimeChange(){const v=document.getElementById('break15TimeInput').value.trim();if(!v){STATE.break15={...STATE.break15,time:null};}else{const t=parseTimeStr(v);if(t===null)return;STATE.break15={...STATE.break15,time:t};}renderBreakToggles();_saveLeversSilent(false);renderAll();}
 function updateModeDisplay(){const mode=document.querySelector('input[name="dataMode"]:checked')?.value||'forecast';const b=document.getElementById('adminModeBadge');if(b){b.textContent=mode;b.className='mode-badge '+(mode==='actual'?'mode-actual':'mode-forecast');}}
 function requirePin(tabName,btn){if(STATE.adminUnlocked){switchTab(tabName,btn);return;}_pendingTab=tabName;_pendingBtn=btn;document.getElementById('pinModal').style.display='flex';setTimeout(()=>document.getElementById('pinInput').focus(),50);}
-function checkPin(){const val=document.getElementById('pinInput').value;if(val===ADMIN_PIN){STATE.adminUnlocked=true;closePinModal();switchTab(_pendingTab,_pendingBtn);updateAllocUI();loadApprovalUI();}else{document.getElementById('pinErr').textContent='Incorrect PIN';document.getElementById('pinInput').value='';setTimeout(()=>document.getElementById('pinErr').textContent='',2000);}}
+function checkPin(){const val=document.getElementById('pinInput').value;if(val===ADMIN_PIN){STATE.adminUnlocked=true;closePinModal();switchTab(_pendingTab,_pendingBtn);updateAllocUI();loadApprovalUI();updateAccuracyTabVisibility();}else{document.getElementById('pinErr').textContent='Incorrect PIN';document.getElementById('pinInput').value='';setTimeout(()=>document.getElementById('pinErr').textContent='',2000);}}
 function closePinModal(){document.getElementById('pinModal').style.display='none';document.getElementById('pinInput').value='';document.getElementById('pinErr').textContent='';}
-function switchTab(name,btn){document.querySelectorAll('.tab-view').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');if(name==='admin'){document.getElementById('topbarDayTabs').style.display='none';renderUndoBar();loadForecastWeeks();renderLHScheduleTable();renderScheduleUpdatesList();renderThruputTable();renderLinesPerDayTable();renderThresholdRows();renderLaborConfig();renderChicagoSplit();buildCPTControls();loadAdminUsers();loadApproverPanel();}if(name==='schedule'){document.getElementById('topbarDayTabs').style.display='flex';renderDayTabs();loadApprovalUI();loadHolidayOverrideUI();renderBreakToggles();}if(name==='logistics'){document.getElementById('topbarDayTabs').style.display='none';renderLogistics();}if(name==='accuracy'){document.getElementById('topbarDayTabs').style.display='none';renderAccuracy();}}
+function switchTab(name,btn){document.querySelectorAll('.tab-view').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');btn.classList.add('active');if(name==='admin'){document.getElementById('topbarDayTabs').style.display='none';renderUndoBar();loadForecastWeeks();renderLHScheduleTable();renderScheduleUpdatesList();renderThruputTable();renderLinesPerDayTable();renderThresholdRows();renderLaborConfig();renderChicagoSplit();loadAdminUsers();loadApproverPanel();renderCarrierEmailsPanel();migrateCptOverridesIntoSchedule();}if(name==='schedule'){document.getElementById('topbarDayTabs').style.display='flex';renderDayTabs();loadApprovalUI();loadHolidayOverrideUI();renderBreakToggles();}if(name==='logistics'){document.getElementById('topbarDayTabs').style.display='none';_logScrolledToToday=false;renderLogistics();}if(name==='contacts'){document.getElementById('topbarDayTabs').style.display='none';loadContactsTab(false);}if(name==='accuracy'){document.getElementById('topbarDayTabs').style.display='none';renderAccuracy();}}
 // ─── LOGISTICS TAB ────────────────────────────────────────────────────────────
-function setLogisticsWeek(w){STATE.logisticsWeek=w;renderLogistics();}
-function saveLogisticsApproval(weekLabel,day){
-  const wk=weekLabel||STATE.logisticsWeek||STATE.currentWeek;
-  const dayData=STATE.demands[wk]?.[day];
-  if(!dayData)return;
-  if(!dayData.approvals)dayData.approvals={};
-  const approved=!dayData.approvals['logistics']?.approved;
-  const initials=getInitialsFromEmail(STATE._currentUserEmail||'');
-  dayData.approvals['logistics']={approved,approvedBy:approved?initials:''};
-  renderDayTabs();
-  renderLogistics();
-  google.script.run.withFailureHandler(err=>{console.error('Approval save failed:',err.message);}).saveDayApproval(wk,day,{logistics:{approved,approvedBy:approved?initials:''}});
+// Builds one row per (week, day, linehaul) across ALL loaded weeks. simulate()/autoLines()
+// read STATE.currentWeek internally rather than taking a week argument, so we swap
+// STATE.currentWeek to each week in turn while building, then restore it — this also
+// fixes a latent issue where a Logistics week other than the Schedule tab's active
+// week would silently simulate against the wrong week's data.
+const LOGISTICS_WEEKS_BACK=2,LOGISTICS_WEEKS_FWD=8;
+function buildLogisticsRows(){
+  const weeks=Object.keys(STATE.demands).sort();
+  const rows=[];
+  const savedCurrentWeek=STATE.currentWeek;
+  const todayStr=new Date().toISOString().slice(0,10);
+  const startD=new Date(todayStr+'T00:00:00');startD.setDate(startD.getDate()-LOGISTICS_WEEKS_BACK*7);
+  const endD=new Date(todayStr+'T00:00:00');endD.setDate(endD.getDate()+LOGISTICS_WEEKS_FWD*7);
+  const windowStart=startD.toISOString().slice(0,10),windowEnd=endD.toISOString().slice(0,10);
+  weeks.forEach(week=>{
+    STATE.currentWeek=week;
+    DAYS_ORDER.forEach(day=>{
+      const dayData=STATE.demands[week]?.[day];
+      if(!dayData)return;
+      if(dayData.date&&(dayData.date<windowStart||dayData.date>windowEnd))return;
+      const saved=dayData.levers||{};
+      const ps=saved.pickStart??DEFAULT_PICK_START;
+      const hov=dayData.holidayOverride;
+      const lines=(hov?.active&&hov.lines)?hov.lines:(autoLines(day)||(STATE.lines&&STATE.lines[day])||2);
+      const p={lines,uph:saved.uph??STATE.thruputs[day]??DEFAULT_UPH_FALLBACK,startH:Math.min(16,Math.floor(ps)),shiftLen:10,pickStart:ps,mwStart:saved.allocStart??DEFAULT_ALLOC_START};
+      const sim=simulate(day,p);
+      if(!sim)return;
+      const carrierData=dayData.carrierData||{};
+      sim.result.forEach(r=>{
+        if(!r.vol||r.vol<=0)return;
+        const cd=carrierData[r.lh]||{};
+        const arrivalRawH=r.levelLoaded?null:Math.ceil((r.te-1)*4)/4;
+        const arrival=arrivalRawH===null?null:ft24(arrivalRawH);
+        let diffMin=null,diffDir='',needsUpdate=false;
+        if(arrivalRawH!==null&&cd.scheduledAppt){
+          const schedH=parseTimeStr(cd.scheduledAppt);
+          if(schedH!==null){
+            const arrivalNorm=arrivalRawH>=24?arrivalRawH-24:arrivalRawH;
+            let raw=arrivalNorm-schedH;
+            if(raw>12)raw-=24;if(raw<-12)raw+=24;
+            diffMin=Math.round(Math.abs(raw)*60);
+            diffDir=raw>0?'later':raw<0?'earlier':'';
+            needsUpdate=diffMin>15;
+          }
+        }
+        rows.push({
+          week,day,date:dayData.date||'',lh:r.lh,isMW:!!r.isMW,vol:r.vol,
+          levelLoaded:!!r.levelLoaded,st:r.st,arrival,
+          carrier:cd.carrier||'',loadNumber:cd.loadNumber||'',scheduledAppt:cd.scheduledAppt||'',manual:!!cd.manual,
+          diffMin,diffDir,needsUpdate,
+        });
+      });
+    });
+  });
+  STATE.currentWeek=savedCurrentWeek;
+  rows.sort((a,b)=>{
+    if(a.date!==b.date)return b.date.localeCompare(a.date); // newest/future first, like the Load Tracker sheet — scroll down for past
+    if(a.arrival!==b.arrival){if(!a.arrival)return 1;if(!b.arrival)return -1;return a.arrival.localeCompare(b.arrival);}
+    return a.lh.localeCompare(b.lh);
+  });
+  return rows;
+}
+function refreshCarrierData(){
+  const btn=document.getElementById('carrierRefreshBtn');
+  const status=document.getElementById('carrierPullStatus');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Pulling...';
+  google.script.run.withSuccessHandler(result=>{
+    btn.disabled=false;btn.innerHTML='↻ refresh carrier data';
+    google.script.run.withSuccessHandler(s=>{if(s&&s.demands)STATE.demands=s.demands;if(s&&s.lastModified)_lastModified=s.lastModified;
+      const parts=[`✓ ${result.matched} load${result.matched===1?'':'s'} matched`];
+      if(result.skippedNoPublish)parts.push(`${result.skippedNoPublish} skipped (week/day not yet published)`);
+      let html=`<div class="status-bar status-ok">${parts.join(' · ')}</div>`;
+      if(result.unmapped&&result.unmapped.length)html+=`<div class="status-bar status-err" style="margin-top:4px">Unmapped destination(s), add to MARKET_LH_MAP or flag to Claude: ${result.unmapped.join(', ')}</div>`;
+      status.innerHTML=html;
+      renderLogistics();
+    }).withFailureHandler(()=>{renderLogistics();}).getState();
+  }).withFailureHandler(err=>{
+    btn.disabled=false;btn.innerHTML='↻ refresh carrier data';
+    status.innerHTML=`<div class="status-bar status-err">Pull failed: ${err.message}</div>`;
+  }).pullCarrierLoadData();
+}
+function openCarrierEditModal(week,day,lh,carrier,loadNumber,manual){
+  _cePending={week,day,lh};
+  document.getElementById('carrierEditLabel').textContent=`${lh} — ${day}`;
+  document.getElementById('ceCarrierInput').value=carrier||'';
+  document.getElementById('ceLoadInput').value=loadNumber||'';
+  document.getElementById('ceRevertBtn').style.display=manual?'':'none';
+  document.getElementById('carrierEditStatus').textContent='';
+  document.getElementById('carrierEditModal').style.display='flex';
+}
+function closeCarrierEditModal(){document.getElementById('carrierEditModal').style.display='none';_cePending=null;}
+function saveCarrierEdit(){
+  if(!_cePending)return;
+  const{week,day,lh}=_cePending;
+  const carrier=document.getElementById('ceCarrierInput').value.trim();
+  const loadNumber=document.getElementById('ceLoadInput').value.trim();
+  const status=document.getElementById('carrierEditStatus');
+  status.innerHTML='<span class="spinner"></span>Saving...';
+  google.script.run.withSuccessHandler(()=>{
+    const dayData=STATE.demands[week]?.[day];
+    if(dayData){if(!dayData.carrierData)dayData.carrierData={};const existing=dayData.carrierData[lh]||{};dayData.carrierData[lh]={carrier,loadNumber,scheduledAppt:existing.scheduledAppt||'',manual:true};}
+    closeCarrierEditModal();renderLogistics();
+  }).withFailureHandler(err=>{status.innerHTML=`<span style="color:var(--red)">Error: ${err.message}</span>`;}).saveCarrierOverride(week,day,lh,carrier,loadNumber);
+}
+function revertCarrierEdit(){
+  if(!_cePending)return;
+  const{week,day,lh}=_cePending;
+  google.script.run.withSuccessHandler(()=>{
+    const dayData=STATE.demands[week]?.[day];
+    if(dayData&&dayData.carrierData)delete dayData.carrierData[lh];
+    closeCarrierEditModal();renderLogistics();
+  }).withFailureHandler(err=>{document.getElementById('carrierEditStatus').innerHTML=`<span style="color:var(--red)">Error: ${err.message}</span>`;}).clearCarrierOverride(week,day,lh);
+}
+function onLogisticsCarrierFilterChange(val){STATE.logisticsCarrierFilter=val;renderLogistics();}
+function toggleLogRowSelect(key,checked){if(checked)_logSelected.add(key);else _logSelected.delete(key);updateBulkEmailBar();}
+function updateBulkEmailBar(){
+  const bar=document.getElementById('logBulkEmailBar');
+  if(!bar)return;
+  const curFilter=STATE.logisticsCarrierFilter||'';
+  const canApproveLogistics=STATE.adminUnlocked||STATE.approverDepts.includes('logistics');
+  if(!curFilter||!canApproveLogistics){bar.style.display='none';return;}
+  const n=_logSelected.size;
+  bar.style.display='flex';
+  bar.innerHTML=`<span style="font-family:var(--mono);font-size:11px;color:var(--muted)">${n} change${n===1?'':'s'} selected for <strong style="color:var(--text)">${curFilter}</strong></span><button class="btn btn-teal btn-sm" style="margin-left:auto" ${n?'':'disabled'} onclick="openBulkEmailModal()">✉ email ${curFilter}</button>`;
+}
+function openBulkEmailModal(){
+  const curFilter=STATE.logisticsCarrierFilter||'';
+  if(!curFilter||!_logSelected.size)return;
+  const keys=[..._logSelected];
+  const allRows=buildLogisticsRows();
+  const selectedRows=allRows.filter(r=>r.carrier===curFilter&&keys.includes(r.week+'|'+r.day+'|'+r.lh));
+  if(!selectedRows.length)return;
+  _ecPending={carrier:curFilter,keys};
+  const contactInfo=STATE.carrierEmails[curFilter]||{};
+  const email=contactInfo.email||'';
+  document.getElementById('ecNoEmailWarning').style.display=email?'none':'';
+  document.getElementById('ecToInput').value=email;
+  document.getElementById('ecSubjectInput').value=`Schedule change requests — ${curFilter}`;
+  const greeting=contactInfo.contactName?`Hey ${contactInfo.contactName},`:'Hi,';
+  const lines=[greeting,``,`We're looking at some schedule changes:`,``];
+  selectedRows.forEach(r=>{
+    lines.push(`${r.loadNumber||r.lh}: ${r.scheduledAppt||'—'} -> ${r.arrival||'—'}`);
+  });
+  lines.push(``,``); // room for Jake to add his own note/sign-off
+  document.getElementById('ecBodyInput').value=lines.join('\n');
+  document.getElementById('emailCarrierStatus').textContent='';
+  document.getElementById('emailCarrierModal').style.display='flex';
+}
+function closeEmailCarrierModal(){document.getElementById('emailCarrierModal').style.display='none';_ecPending=null;}
+function sendCarrierEmailFromModal(){
+  const to=document.getElementById('ecToInput').value.trim();
+  const subject=document.getElementById('ecSubjectInput').value.trim();
+  const body=document.getElementById('ecBodyInput').value;
+  const status=document.getElementById('emailCarrierStatus');
+  if(!to){status.innerHTML='<span style="color:var(--red)">Enter a To address</span>';return;}
+  status.innerHTML='<span class="spinner"></span>Sending...';
+  google.script.run.withSuccessHandler(()=>{
+    status.innerHTML='<span style="color:var(--green)">✓ Sent</span>';
+    if(_ecPending&&_ecPending.keys){_ecPending.keys.forEach(k=>_logSelected.delete(k));updateBulkEmailBar();renderLogistics();}
+    setTimeout(closeEmailCarrierModal,1200);
+  }).withFailureHandler(err=>{status.innerHTML=`<span style="color:var(--red)">Error: ${err.message}</span>`;}).emailCarrier(to,subject,body);
 }
 function renderLogistics(){
-  const weeks=Object.keys(STATE.demands).sort();
-  if(!STATE.logisticsWeek||!STATE.demands[STATE.logisticsWeek])STATE.logisticsWeek=STATE.currentWeek;
-  const week=STATE.logisticsWeek;
-  const sel=document.getElementById('logisticsWeekSel');
-  sel.innerHTML=weeks.length?weeks.map(w=>`<option value="${w}"${w===week?' selected':''}>${w}</option>`).join(''):'<option value="">— no data —</option>';
   const content=document.getElementById('logisticsContent');
-  if(!week||!STATE.demands[week]){content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded for selected week.</div>';return;}
-  const allLHs=new Set();DAYS_ORDER.forEach(day=>{const vol=STATE.demands[week]?.[day]?.vol||{};Object.keys(vol).forEach(lh=>{if(vol[lh]>0)allLHs.add(lh);});});
-  const LH_ORDER={'TN':0,'MN':1,'WI (MKE, MAD)':2,'IL PM':3,'IL AM':10};
-  const sortedLHs=[...allLHs].sort((a,b)=>{const ca=getCPT(a),cb=getCPT(b);if(ca!==cb)return ca-cb;return(LH_ORDER[a]??99)-(LH_ORDER[b]??99);});
-  const dayResults={};
-  DAYS_ORDER.forEach(day=>{const dayData=STATE.demands[week]?.[day];if(!dayData){dayResults[day]=null;return;}const saved=dayData.levers||{};const ps=saved.pickStart??DEFAULT_PICK_START;const hov=dayData.holidayOverride;const lines=(hov?.active&&hov.lines)?hov.lines:(autoLines(day)||(STATE.lines&&STATE.lines[day])||2);const p={lines,uph:saved.uph??STATE.thruputs[day]??2700,startH:Math.min(16,Math.floor(ps)),shiftLen:10,pickStart:ps,mwStart:saved.allocStart??DEFAULT_ALLOC_START};const sim=simulate(day,p);if(!sim){dayResults[day]=null;return;}const map={};sim.result.forEach(r=>{if(map[r.lh]===undefined||!r.levelLoaded){map[r.lh]=ft24(Math.ceil((r.te-1)*4)/4);map[r.lh+"__lvl"]=!!r.levelLoaded;}});map.__late=sim.result.some(r=>!r.levelLoaded&&r.st==='late');dayResults[day]=map;});
-  const days=DAYS_ORDER.filter(d=>STATE.demands[week]?.[d]);
+  if(!Object.keys(STATE.demands).length){content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded yet.</div>';document.getElementById('logBulkEmailBar').style.display='none';return;}
+  const allRows=buildLogisticsRows();
+  const carriers=[...new Set(allRows.map(r=>r.carrier).filter(Boolean))].sort();
+  const filterSel=document.getElementById('logisticsCarrierFilter');
+  const curFilter=STATE.logisticsCarrierFilter||'';
+  filterSel.innerHTML='<option value="">all carriers</option>'+carriers.map(c=>`<option value="${c}"${c===curFilter?' selected':''}>${c}</option>`).join('');
+  const todayStr=new Date().toISOString().slice(0,10);
+  if(curFilter!==_logSelectedCarrier){
+    _logSelected=new Set();
+    _logSelectedCarrier=curFilter;
+  }
+  const rows=curFilter?allRows.filter(r=>r.carrier===curFilter):allRows;
+  updateBulkEmailBar();
+  if(!rows.length){content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No linehauls match.</div>';return;}
   const canApproveLogistics=STATE.adminUnlocked||STATE.approverDepts.includes('logistics');
-  let html=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px"><thead>`;
-  html+=`<tr><td style="padding:6px 12px;border-bottom:.5px solid var(--border2)"></td>`;
-  days.forEach(day=>{
-    const dd=STATE.demands[week]?.[day];
-    const approved=dd?.approvals?.['logistics']?.approved||false;
-    const approvedBy=dd?.approvals?.['logistics']?.approvedBy||'';
-    const wkSafe=week.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    if(canApproveLogistics){
-      if(approved){html+=`<td style="text-align:center;padding:6px 8px;border-bottom:.5px solid var(--border2)"><button onclick="saveLogisticsApproval('${wkSafe}','${day}')" style="background:rgba(79,142,247,0.15);border:1px solid var(--accent);color:var(--accent);font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:500;white-space:nowrap">✅ ${approvedBy}</button></td>`;}
-      else{html+=`<td style="text-align:center;padding:6px 8px;border-bottom:.5px solid var(--border2)"><button onclick="saveLogisticsApproval('${wkSafe}','${day}')" style="background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:20px;cursor:pointer;white-space:nowrap">approve</button></td>`;}
-    }else{
-      html+=`<td style="text-align:center;padding:6px 8px;border-bottom:.5px solid var(--border2)">`;
-      if(approved)html+=`<span style="font-family:var(--mono);font-size:11px;color:var(--accent)">✅ ${approvedBy}</span>`;
-      else html+=`<span style="font-family:var(--mono);font-size:11px;color:var(--border2)">—</span>`;
-      html+=`</td>`;
-    }
-  });
-  html+=`</tr>`;
-  html+=`<tr><th style="text-align:left;padding:8px 12px;border-bottom:.5px solid var(--border2);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:400;width:160px">Linehaul</th>`;
-  days.forEach(day=>{const dd=STATE.demands[week]?.[day];const dateStr=dd?.date?new Date(dd.date+'T12:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric'}):'';const modeClass=dd?.mode==='actual'?'mode-actual':dd?.mode==='forecast'?'mode-forecast':'mode-none';const alertClass=dayResults[day]&&dayResults[day].__late?' day-card--alert':'';html+=`<th style="text-align:center;padding:8px 12px;border-bottom:.5px solid var(--border2)"><div class="topbar-day-tab ${modeClass}${alertClass}" style="display:inline-flex;cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.08em">${day.slice(0,3)}<span class="tdt-date" style="text-transform:none;letter-spacing:0">${dateStr}</span></div></th>`;});
+  const showCheckboxes=!!curFilter&&canApproveLogistics;
+  const headers=['Date','Linehaul','Carrier','Load #','Sched. Appt','Rec. Arrival','Status'];
+  if(showCheckboxes)headers.push('');
+  let html=`<div id="logisticsScrollWrap" style="max-height:calc(100vh - 320px);overflow-y:auto;position:relative"><table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px"><thead><tr>`;
+  headers.forEach((h,i)=>{html+=`<th style="position:sticky;top:0;background:var(--surface);z-index:2;box-shadow:0 1px 0 var(--border2);text-align:${i>=2&&i<=6?'center':'left'};padding:7px 10px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:400">${h}</th>`;});
   html+=`</tr></thead><tbody>`;
-  sortedLHs.forEach(lh=>{const lhColor=LH_COLORS[lh]||'#94a3b8';const isMW=getMW(week).has(lh);const mwTag=isMW?`<span class="tag-mw" style="margin-left:5px;font-size:10px">MW</span>`:`<span class="tag-nmw" style="margin-left:5px;font-size:10px">non-MW</span>`;html+=`<tr style="border-bottom:.5px solid var(--border)"><td style="padding:10px 12px"><span style="color:${lhColor};font-weight:500">${lh}</span>${mwTag}</td>`;days.forEach(day=>{const res=dayResults[day];const vol=STATE.demands[week]?.[day]?.vol?.[lh]||0;if(!res||!vol){html+=`<td style="text-align:center;padding:10px 12px;color:var(--border2)">—</td>`;}else{const arrival=res[lh];if(!arrival){html+=`<td style="padding:10px 12px"></td>`;}else{const isLvl=!!(res[lh+"__lvl"]);if(isLvl){const wkSched=getLHScheduleForWeek(week);const lhEnt=wkSched.find(l=>l.lh===lh);const dIdx=DAYS_ORDER.indexOf(day);const nxt=DAYS_ORDER.slice(dIdx+1).find(d=>lhEnt&&lhEnt.days[DAY_SHORT[d]])||null;const pLbl=nxt?"→ pickup "+nxt.slice(0,3):"→ pickup TBD";html+='<td style="text-align:center;padding:10px 12px">'+'<div style="font-weight:500;color:#f472b6">'+arrival+'</div><div style="font-size:9px;font-family:var(--mono);color:#f472b6;opacity:.8;margin-top:2px">'+pLbl+'</div></td>';}else{html+=`<td style="text-align:center;padding:10px 12px;font-weight:500;color:var(--accent)">${arrival}</td>`;}}}});html+=`</tr>`;});
+  rows.forEach(r=>{
+    const lhColor=LH_COLORS[r.lh]||'#94a3b8';
+    const mwTag=r.isMW?'<span class="tag-mw" style="margin-left:5px;font-size:9px">MW</span>':'<span class="tag-nmw" style="margin-left:5px;font-size:9px">non-MW</span>';
+    const dd=STATE.demands[r.week]?.[r.day];
+    const dateStr=dd?.date?new Date(dd.date+'T12:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric'}):'';
+    const wkSafe=r.week.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const carrierSafe=(r.carrier||'').replace(/'/g,"\\'");
+    const loadSafe=(r.loadNumber||'').replace(/'/g,"\\'");
+    const manualTag=r.manual?'<span style="color:var(--teal);font-size:9px;margin-left:4px" title="manually corrected">✎</span>':'';
+    const arrivalHtml=r.levelLoaded?`<span style="color:#f472b6">lvl load</span>`:(r.arrival||'—');
+    const diffTag=r.needsUpdate?`<div style="font-size:9px;color:var(--amber);margin-top:1px">Δ ${r.diffMin}m ${r.diffDir}</div>`:'';
+    const statusBadge=r.levelLoaded?'<span class="badge b-lvl">lvl load</span>':r.st==='ok'?'<span class="badge b-ok">on time</span>':r.st==='tight'?'<span class="badge b-tight">tight</span>':'<span class="badge b-late">late</span>';
+    const rowKey=r.week+'|'+r.day+'|'+r.lh;
+    const rowBg=r.needsUpdate?'background:rgba(245,158,11,0.06);':'';
+    html+=`<tr data-date="${r.date}" style="border-bottom:.5px solid var(--border);${rowBg}">`;
+    html+=`<td style="padding:8px 10px;color:var(--muted)">${r.day.slice(0,3)} ${dateStr}</td>`;
+    html+=`<td style="padding:8px 10px"><span style="color:${lhColor};font-weight:500">${r.lh}</span>${mwTag}</td>`;
+    if(canApproveLogistics){
+      html+=`<td style="text-align:center;padding:8px 10px;cursor:pointer" onclick="openCarrierEditModal('${wkSafe}','${r.day}','${r.lh}','${carrierSafe}','${loadSafe}',${r.manual})">${r.carrier||'<span style="color:var(--border2)">— add —</span>'}${manualTag}</td>`;
+      html+=`<td style="text-align:center;padding:8px 10px;cursor:pointer" onclick="openCarrierEditModal('${wkSafe}','${r.day}','${r.lh}','${carrierSafe}','${loadSafe}',${r.manual})">${r.loadNumber||'<span style="color:var(--border2)">—</span>'}</td>`;
+    }else{
+      html+=`<td style="text-align:center;padding:8px 10px">${r.carrier||'—'}${manualTag}</td>`;
+      html+=`<td style="text-align:center;padding:8px 10px">${r.loadNumber||'—'}</td>`;
+    }
+    html+=`<td style="text-align:center;padding:8px 10px;color:var(--muted)">${r.scheduledAppt||'—'}</td>`;
+    html+=`<td style="text-align:center;padding:8px 10px;font-weight:500;color:var(--accent)">${arrivalHtml}${diffTag}</td>`;
+    html+=`<td style="text-align:center;padding:8px 10px">${statusBadge}</td>`;
+    if(showCheckboxes){
+      if(r.date>=todayStr){
+        const checked=_logSelected.has(rowKey);
+        html+=`<td style="text-align:center;padding:8px 10px"><input type="checkbox" class="day-check" ${checked?'checked':''} onchange="toggleLogRowSelect('${rowKey.replace(/'/g,"\\'")}',this.checked)"></td>`;
+      }else{
+        html+=`<td style="text-align:center;padding:8px 10px;color:var(--border2)">—</td>`;
+      }
+    }
+    html+=`</tr>`;
+  });
   html+=`</tbody></table></div>`;
-  html+=`<div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:10px;opacity:.7">Rec. truck arrival = PP finish − 1 hr, rounded up to nearest 15 min · Times in 24hr format</div>`;
+  html+=`<div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:10px;opacity:.7">Rec. truck arrival = PP finish − 1 hr, rounded up to nearest 15 min · Times in 24hr format · Click Carrier/Load # to edit · Δ flags a gap over 15 min vs. scheduled appt</div>`;
   content.innerHTML=html;
+  if(!_logScrolledToToday){
+    const wrap=document.getElementById('logisticsScrollWrap');
+    const todayStr=new Date().toISOString().slice(0,10);
+    if(wrap){
+      let todayRow=wrap.querySelector(`tr[data-date="${todayStr}"]`);
+      if(!todayRow){
+        const trs=[...wrap.querySelectorAll('tbody tr')];
+        todayRow=trs.find(tr=>tr.dataset.date&&tr.dataset.date<=todayStr);
+      }
+      if(todayRow){
+        const theadEl=wrap.querySelector('thead');
+        const headH=theadEl?theadEl.getBoundingClientRect().height:0;
+        wrap.scrollTop=todayRow.offsetTop-headH;
+      }
+    }
+    _logScrolledToToday=true;
+  }
+}
+// ─── LINEHAUL CONTACTS (read-only reference tab) ──────────────────────────────
+function loadContactsTab(forceRefresh){
+  if(_linehaulContacts&&!forceRefresh){renderContactsTab();return;}
+  const btn=document.getElementById('contactsRefreshBtn');
+  const content=document.getElementById('contactsContent');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Loading...';}
+  if(!_linehaulContacts)content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">Loading...</div>';
+  google.script.run.withSuccessHandler(list=>{
+    if(btn){btn.disabled=false;btn.innerHTML='↻ refresh';}
+    _linehaulContacts=list||[];
+    const sel=document.getElementById('contactsCarrierFilter');
+    if(sel)sel.dataset.built='';
+    const stamp=document.getElementById('contactsLastRefreshed');
+    if(stamp)stamp.textContent='Last refreshed: '+new Date().toLocaleString('en-US',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'});
+    renderContactsTab();
+  }).withFailureHandler(err=>{
+    if(btn){btn.disabled=false;btn.innerHTML='↻ refresh';}
+    content.innerHTML=`<div class="status-bar status-err">Couldn't load contacts: ${err.message}</div>`;
+  }).getLinehaulContacts();
+}
+function _escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _nl2br(s){return _escHtml(s).replace(/\n/g,'<br>');}
+function renderContactsTab(){
+  const content=document.getElementById('contactsContent');
+  const list=_linehaulContacts||[];
+  const sel=document.getElementById('contactsCarrierFilter');
+  const curFilter=sel.value||'';
+  if(!sel.dataset.built){
+    const carriers=[...new Set(list.map(c=>c.carrier))].sort();
+    sel.innerHTML='<option value="">all carriers</option>'+carriers.map(c=>`<option value="${_escHtml(c)}">${_escHtml(c)}</option>`).join('');
+    sel.dataset.built='1';
+  }
+  const rows=curFilter?list.filter(c=>c.carrier===curFilter):list;
+  if(!rows.length){content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No contacts found.</div>';return;}
+  content.innerHTML=rows.map(c=>{
+    const rowHtml=(label,val)=>val?`<div style="display:flex;gap:8px;margin-bottom:4px"><div style="width:130px;flex-shrink:0;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding-top:2px">${label}</div><div style="font-family:var(--mono);font-size:12px;line-height:1.5">${_nl2br(val)}</div></div>`:'';
+    return `<div class="panel" style="margin-bottom:12px">
+      <div class="panel-title"><span style="font-size:13px;color:var(--text);text-transform:none;letter-spacing:0">${_escHtml(c.carrier)}</span></div>
+      ${rowHtml('Account Contact',c.contact)}
+      ${rowHtml('Phone',c.phone)}
+      ${rowHtml('Email',c.email)}
+      ${rowHtml('Secondary',[c.secNames,c.secPhones,c.secEmails].filter(Boolean).length?[c.secNames,c.secPhones,c.secEmails].filter(Boolean).join('\n'):'')}
+      ${rowHtml('Slack',c.slack)}
+      ${rowHtml('Portal',c.portal)}
+      ${c.disruption?`<div style="margin-top:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px"><div style="color:var(--amber);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Service Disruption</div><div style="font-family:var(--mono);font-size:12px;line-height:1.6">${_nl2br(c.disruption)}</div></div>`:''}
+    </div>`;
+  }).join('');
+}
+function renderCarrierEmailsPanel(){
+  const body=document.getElementById('carrierEmailsBody');
+  if(!body)return;
+  const entries=Object.entries(STATE.carrierEmails||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  body.innerHTML=entries.length?entries.map(([carrier,info])=>{
+    const email=(info&&info.email)||info||''; // tolerate legacy flat-string entries
+    const tag=info&&info.manual?'<span style="color:var(--teal);font-size:9px;margin-left:4px" title="manually entered">✎ manual</span>':'<span style="color:var(--muted);font-size:9px;margin-left:4px" title="from Carrier Contacts tab">↻ auto</span>';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:4px;padding:4px 8px"><span style="font-family:var(--mono);font-size:11px"><strong>${carrier}</strong> — ${email}${tag}</span><button class="btn btn-danger btn-sm" style="padding:1px 7px" onclick="removeCarrierEmail('${carrier.replace(/'/g,"\\'")}')">✕</button></div>`;
+  }).join(''):'<div style="font-size:10px;font-family:var(--mono);color:var(--muted)">No carrier emails on file yet.</div>';
+}
+function refreshCarrierEmails(){
+  const btn=document.getElementById('carrierEmailsRefreshBtn');
+  const status=document.getElementById('carrierEmailsStatus');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Pulling...';
+  google.script.run.withSuccessHandler(result=>{
+    btn.disabled=false;btn.innerHTML='↻ pull from Carrier Contacts';
+    status.innerHTML=`<div class="status-bar status-ok">✓ ${result.matched} carrier${result.matched===1?'':'s'} matched</div>`;
+    google.script.run.withSuccessHandler(m=>{STATE.carrierEmails=m||{};renderCarrierEmailsPanel();}).withFailureHandler(()=>{}).getCarrierEmails();
+  }).withFailureHandler(err=>{
+    btn.disabled=false;btn.innerHTML='↻ pull from Carrier Contacts';
+    status.innerHTML=`<div class="status-bar status-err">Pull failed: ${err.message}</div>`;
+  }).pullCarrierEmails();
+}
+function addCarrierEmail(){
+  const nameEl=document.getElementById('newCarrierName'),emailEl=document.getElementById('newCarrierEmail');
+  const name=nameEl.value.trim(),email=emailEl.value.trim();
+  if(!name||!email)return;
+  STATE.carrierEmails[name]={email,manual:true};
+  nameEl.value='';emailEl.value='';
+  renderCarrierEmailsPanel();
+  const status=document.getElementById('carrierEmailsStatus');
+  status.innerHTML='<span class="spinner"></span>Saving...';
+  google.script.run.withSuccessHandler(()=>{status.innerHTML='<span style="color:var(--green)">✓ Saved</span>';setTimeout(()=>status.innerHTML='',2000);}).withFailureHandler(err=>{status.innerHTML=`<span style="color:var(--red)">Error: ${err.message}</span>`;}).saveCarrierEmails(STATE.carrierEmails);
+}
+function removeCarrierEmail(carrier){
+  delete STATE.carrierEmails[carrier];
+  renderCarrierEmailsPanel();
+  google.script.run.withFailureHandler(()=>{}).saveCarrierEmails(STATE.carrierEmails);
 }
 function renderAccuracy(){
   renderChicagoSplitAccuracy();
@@ -1012,15 +1366,16 @@ function parseDemandPaste(){
   window._pendingDemand={lhTotals,weekLabel,mode,dates:{},rawText:raw,levelLoadVol,marketVol};
   document.getElementById('publishRow').style.display='';
 }
-function publishToSchedule(){const{lhTotals,weekLabel,mode,dates,rawText,levelLoadVol,marketVol}=window._pendingDemand||{};if(!lhTotals)return;const btn=event.target;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Publishing...';google.script.run.withSuccessHandler(()=>{btn.disabled=false;btn.innerHTML='🚀 Publish to Schedule';if(!STATE.demands[weekLabel])STATE.demands[weekLabel]={};Object.entries(lhTotals).forEach(([day,volByLH])=>{const existing=STATE.demands[weekLabel][day];const history=existing?(()=>{const h=existing.history||[];h.unshift({vol:existing.vol,mode:existing.mode,date:existing.date,publishedBy:existing.publishedBy||'',publishedAt:existing.publishedAt||'',savedAt:new Date().toISOString()});return h.slice(0,5);})():[];const _overrides={vol:volByLH,mode,date:dates?.[day]||'',history};if(mode==='forecast')_overrides.forecastVol=volByLH;if(levelLoadVol&&levelLoadVol[day]!==undefined)_overrides.levelLoadVol=levelLoadVol[day];if(marketVol&&marketVol[day]!==undefined)_overrides.marketVol=marketVol[day];STATE.demands[weekLabel][day]=Object.assign({},existing,_overrides);});STATE.currentWeek=weekLabel;STATE.currentDay=Object.keys(lhTotals)[0];window._pendingDemand=null;document.getElementById('publishRow').style.display='none';document.getElementById('demandPreview').innerHTML='';document.getElementById('demandPaste').value='';if(document.getElementById('levelLoadPaste'))document.getElementById('levelLoadPaste').value='';renderWeekSel();renderDayTabs();loadDayLevers();updateLabels();switchTab('schedule',document.getElementById('tab-btn-schedule'));const _ptsDays=Object.keys(lhTotals).sort((a,b)=>['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(a)-['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(b));showSlackFloat(weekLabel,_ptsDays,mode);}).withFailureHandler(err=>{btn.disabled=false;btn.innerHTML='🚀 Publish to Schedule';document.getElementById('demandPreview').innerHTML+=`<div class="status-bar status-err">Error: ${err.message}</div>`;}).publishWeek(weekLabel,lhTotals,dates||{},mode,rawText||'',levelLoadVol||{},marketVol||{});}
+function publishToSchedule(){const{lhTotals,weekLabel,mode,dates,rawText,levelLoadVol,marketVol}=window._pendingDemand||{};if(!lhTotals)return;const btn=event.target;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Publishing...';google.script.run.withSuccessHandler(()=>{btn.disabled=false;btn.innerHTML='🚀 Publish to Schedule';if(!STATE.demands[weekLabel])STATE.demands[weekLabel]={};Object.entries(lhTotals).forEach(([day,volByLH])=>{const existing=STATE.demands[weekLabel][day];const history=existing?(()=>{const h=existing.history||[];h.unshift({vol:existing.vol,mode:existing.mode,date:existing.date,publishedBy:existing.publishedBy||'',publishedAt:existing.publishedAt||'',savedAt:new Date().toISOString()});return h.slice(0,5);})():[];const _overrides={vol:volByLH,mode,date:dates?.[day]||'',history};if(mode==='forecast')_overrides.forecastVol=volByLH;if(levelLoadVol&&levelLoadVol[day]!==undefined)_overrides.levelLoadVol=levelLoadVol[day];if(marketVol&&marketVol[day]!==undefined)_overrides.marketVol=marketVol[day];STATE.demands[weekLabel][day]=Object.assign({},existing,_overrides);});STATE.currentWeek=weekLabel;STATE.currentDay=Object.keys(lhTotals)[0];window._pendingDemand=null;document.getElementById('publishRow').style.display='none';document.getElementById('demandPreview').innerHTML='';document.getElementById('demandPaste').value='';if(document.getElementById('levelLoadPaste'))document.getElementById('levelLoadPaste').value='';renderWeekSel();renderDayTabs();loadDayLevers();updateLabels();switchTab('schedule',document.getElementById('tab-btn-schedule'));const _ptsDays=Object.keys(lhTotals).sort((a,b)=>['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(a)-['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].indexOf(b));showSlackFloat(weekLabel,_ptsDays,mode);if(mode==='actual')showOpsUpdateWidget();}).withFailureHandler(err=>{btn.disabled=false;btn.innerHTML='🚀 Publish to Schedule';document.getElementById('demandPreview').innerHTML+=`<div class="status-bar status-err">Error: ${err.message}</div>`;}).publishWeek(weekLabel,lhTotals,dates||{},mode,rawText||'',levelLoadVol||{},marketVol||{});}
 function clearPaste(){document.getElementById('demandPaste').value='';if(document.getElementById('levelLoadPaste'))document.getElementById('levelLoadPaste').value='';document.getElementById('demandPreview').innerHTML='';document.getElementById('publishRow').style.display='none';window._pendingDemand=null;}
 function guessWeekLabel(){const now=new Date(),jan1=new Date(now.getFullYear(),0,1),wk=Math.ceil((((now-jan1)/86400000)+jan1.getDay()+1)/7);return`W${String(wk).padStart(2,'0')}-${now.getFullYear()}`;}
-function renderLHScheduleTable(){const shortDays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];document.getElementById('lhScheduleBody').innerHTML=STATE.lhSchedule.map((l,idx)=>{const dayCells=shortDays.map(d=>`<td style="text-align:center"><input type="checkbox" class="day-check" ${l.days[d]?'checked':''} onchange="toggleLHDay(${idx},'${d}',this.checked)"></td>`).join('');const groupSel=`<select class="inline-sel" onchange="setLHGroup(${idx},this.value)"><option value="MW" ${l.group==='MW'?'selected':''}>MW</option><option value="Non-MW" ${l.group!=='MW'?'selected':''}>Non-MW</option></select>`;const curCpt=STATE.cptOverrides[l.lh]!==undefined?STATE.cptOverrides[l.lh]:l.cpt;const cptDisplay=`<span style="font-family:var(--mono);font-size:11px;color:var(--text);opacity:.7">${ftPlus(curCpt)}</span>`;return`<tr><td><strong style="font-family:var(--mono)">${l.lh}</strong></td><td>${groupSel}</td><td style="font-size:10px;color:var(--muted)">${l.markets.join(', ')}</td><td>${cptDisplay}</td>${dayCells}<td><button class="btn btn-danger btn-sm" onclick="removeLH(${idx})">✕</button></td></tr>`;}).join('');}
+function renderLHScheduleTable(){const shortDays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];document.getElementById('lhScheduleBody').innerHTML=STATE.lhSchedule.map((l,idx)=>{const dayCells=shortDays.map(d=>`<td style="text-align:center"><input type="checkbox" class="day-check" ${l.days[d]?'checked':''} onchange="toggleLHDay(${idx},'${d}',this.checked)"></td>`).join('');const groupSel=`<select class="inline-sel" onchange="setLHGroup(${idx},this.value)"><option value="MW" ${l.group==='MW'?'selected':''}>MW</option><option value="Non-MW" ${l.group!=='MW'?'selected':''}>Non-MW</option></select>`;const isPlus1=l.cpt>=24;const timeStr=toTimeStr(l.cpt);const cptDisplay=`<input type="text" class="cpt-time-input" id="lhcpt-time-${idx}" value="${timeStr}" style="width:76px" onchange="setLHCpt(${idx},this,document.getElementById('lhcpt-p1-${idx}'))"><label class="cpt-plus1-label" title="Check if CPT is next day (after midnight)"><input type="checkbox" id="lhcpt-p1-${idx}" ${isPlus1?'checked':''} onchange="setLHCpt(${idx},document.getElementById('lhcpt-time-${idx}'),this)"> +1</label>`;return`<tr><td><strong style="font-family:var(--mono)">${l.lh}</strong></td><td>${groupSel}</td><td style="font-size:10px;color:var(--muted)">${l.markets.join(', ')}</td><td style="white-space:nowrap">${cptDisplay}</td>${dayCells}<td><button class="btn btn-danger btn-sm" onclick="removeLH(${idx})">✕</button></td></tr>`;}).join('');}
+function setLHCpt(idx,timeInputEl,plus1El){const raw=timeInputEl.value.trim();const base=parseTimeStr(raw);if(base===null){timeInputEl.classList.add('invalid');return;}timeInputEl.classList.remove('invalid');STATE.lhSchedule[idx].cpt=plus1El.checked?base+24:base;renderAll();}
 function toggleLHDay(idx,day,val){STATE.lhSchedule[idx].days[day]=val;renderAll();}
-function setLHGroup(idx,val){STATE.lhSchedule[idx].group=val;buildCPTControls();renderAll();}
-function removeLH(idx){STATE.lhSchedule.splice(idx,1);renderLHScheduleTable();buildCPTControls();renderAll();}
+function setLHGroup(idx,val){STATE.lhSchedule[idx].group=val;renderAll();}
+function removeLH(idx){STATE.lhSchedule.splice(idx,1);renderLHScheduleTable();renderAll();}
 function showAddLHForm(){const f=document.getElementById('addLHForm');f.style.display=f.style.display==='none'?'block':'none';}
-function addLinehaul(){const lh=document.getElementById('newLhCode').value.trim(),markets=document.getElementById('newLhMarkets').value.split(',').map(s=>s.trim()).filter(Boolean),cptStr=document.getElementById('newLhCpt').value.trim();if(!lh)return;const cpt=parseCptStr(cptStr)||23;STATE.lhSchedule.push({lh,group:'Non-MW',markets,cpt,days:{Mon:false,Tue:false,Wed:false,Thu:false,Fri:false,Sat:false,Sun:false}});STATE.cptOverrides[lh]=cpt;document.getElementById('addLHForm').style.display='none';['newLhCode','newLhMarkets','newLhCpt'].forEach(id=>document.getElementById(id).value='');renderLHScheduleTable();buildCPTControls();renderAll();}
+function addLinehaul(){const lh=document.getElementById('newLhCode').value.trim(),markets=document.getElementById('newLhMarkets').value.split(',').map(s=>s.trim()).filter(Boolean),cptStr=document.getElementById('newLhCpt').value.trim();if(!lh)return;const cpt=parseCptStr(cptStr)||23;STATE.lhSchedule.push({lh,group:'Non-MW',markets,cpt,days:{Mon:false,Tue:false,Wed:false,Thu:false,Fri:false,Sat:false,Sun:false}});document.getElementById('addLHForm').style.display='none';['newLhCode','newLhMarkets','newLhCpt'].forEach(id=>document.getElementById(id).value='');renderLHScheduleTable();renderAll();}
 function saveLHSchedule(){google.script.run.withSuccessHandler(()=>{}).withFailureHandler(err=>alert('Save failed: '+err.message)).saveLhSchedule(STATE.lhSchedule);}
 function renderThresholdRows(){if(!STATE.lineThreshold||!STATE.lineThreshold.length)STATE.lineThreshold=[{vol:47000,lines:3}];document.getElementById('thresholdRows').innerHTML=STATE.lineThreshold.map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px"><span style="color:var(--muted)">≥</span><input type="number" class="thruput-input" id="thr-vol-${i}" value="${t.vol}" min="0" step="1000" style="width:90px"><span style="color:var(--muted)">units →</span><input type="number" class="thruput-input" id="thr-ln-${i}" value="${t.lines}" min="1" max="10" step="1" style="width:50px"><span style="color:var(--muted)">lines</span><button class="btn btn-danger btn-sm" onclick="removeThresholdRow(${i})">✕</button></div>`).join('');}
 function addThresholdRow(){if(!STATE.lineThreshold)STATE.lineThreshold=[];STATE.lineThreshold.push({vol:0,lines:2});renderThresholdRows();}
@@ -1037,7 +1392,7 @@ function renderChicagoSplit(){const cs=STATE.chicagoSplit||{ilPm:0.60,ilAm:0.40}
 function saveChicagoSplit(){const pm=parseFloat(document.getElementById('cs-ilpm').value)||60,am=parseFloat(document.getElementById('cs-ilam').value)||40,total=pm+am;const status=document.getElementById('chicagoSplitStatus');if(Math.abs(total-100)>0.1){status.innerHTML=`<div class="status-bar status-err">PM + AM must equal 100% (currently ${total}%)</div>`;return;}STATE.chicagoSplit={ilPm:pm/100,ilAm:am/100};google.script.run.withFailureHandler(()=>{}).saveState(STATE);status.innerHTML='<div class="status-bar status-ok">✓ Saved</div>';setTimeout(()=>status.innerHTML='',3000);}
 
 function clearDemandData(){if(!confirm('Clear all demand data?'))return;STATE.demands={};STATE.currentWeek=null;STATE.currentDay=null;google.script.run.withFailureHandler(()=>{}).saveState(STATE);renderWeekSel();renderDayTabs();renderAll();}
-function resetAllData(){if(!confirm('Reset everything to defaults?'))return;STATE.lhSchedule=JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE));STATE.thruputs={...DEFAULT_THRUPUTS};STATE.lines={...DEFAULT_LINES};STATE.demands={};STATE.cptOverrides={};STATE.lhSchedule.forEach(l=>STATE.cptOverrides[l.lh]=l.cpt);google.script.run.withFailureHandler(()=>{}).saveState(STATE);location.reload();}
+function resetAllData(){if(!confirm('Reset everything to defaults?'))return;STATE.lhSchedule=JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE));STATE.thruputs={...DEFAULT_THRUPUTS};STATE.lines={...DEFAULT_LINES};STATE.demands={};google.script.run.withFailureHandler(()=>{}).saveState(STATE);location.reload();}
 document.getElementById('weekSel').onchange=e=>{STATE.currentWeek=e.target.value;STATE.currentDay=getAvailableDays(STATE.currentWeek)[0]||null;renderDayTabs();loadDayLevers();updateLabels();};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopPolling();else startPolling();});
 // ─── ROLE PREVIEW ─────────────────────────────────────────────────────────────
@@ -1045,8 +1400,8 @@ let _previewActive=false;
 let _realAdminUnlocked=false;
 let _realApproverDepts=[];
 const PREVIEW_ROLE_LABELS={nonadmin:'Non-admin user',planning:'Planning approver',pickpack:'Pick Pack approver',logistics:'Logistics approver'};
-function applyRolePreview(role){if(role==='self'){exitRolePreview();return;}if(!_previewActive){_realAdminUnlocked=STATE.adminUnlocked;_realApproverDepts=STATE.approverDepts.slice();}_previewActive=true;if(role==='nonadmin'){STATE.adminUnlocked=false;STATE.approverDepts=[];}else if(role==='planning'){STATE.adminUnlocked=false;STATE.approverDepts=['planning','pickpack','logistics'];}else if(role==='pickpack'){STATE.adminUnlocked=false;STATE.approverDepts=['pickpack'];}else if(role==='logistics'){STATE.adminUnlocked=false;STATE.approverDepts=['logistics'];}const banner=document.getElementById('previewBanner');banner.style.display='flex';document.getElementById('previewBannerText').textContent='Previewing as: '+PREVIEW_ROLE_LABELS[role];const adminTab=document.getElementById('tab-btn-admin');if(adminTab)adminTab.style.display='none';updateAllocUI();loadApprovalUI();loadHolidayOverrideUI();renderAll();}
-function exitRolePreview(){if(!_previewActive)return;STATE.adminUnlocked=_realAdminUnlocked;STATE.approverDepts=_realApproverDepts.slice();_previewActive=false;document.getElementById('previewBanner').style.display='none';document.getElementById('previewAsSelect').value='self';const adminTab=document.getElementById('tab-btn-admin');if(adminTab)adminTab.style.display='';updateAllocUI();loadApprovalUI();loadHolidayOverrideUI();renderAll();}
+function applyRolePreview(role){if(role==='self'){exitRolePreview();return;}if(!_previewActive){_realAdminUnlocked=STATE.adminUnlocked;_realApproverDepts=STATE.approverDepts.slice();}_previewActive=true;if(role==='nonadmin'){STATE.adminUnlocked=false;STATE.approverDepts=[];}else if(role==='planning'){STATE.adminUnlocked=false;STATE.approverDepts=['planning','pickpack','logistics'];}else if(role==='pickpack'){STATE.adminUnlocked=false;STATE.approverDepts=['pickpack'];}else if(role==='logistics'){STATE.adminUnlocked=false;STATE.approverDepts=['logistics'];}const banner=document.getElementById('previewBanner');banner.style.display='flex';document.getElementById('previewBannerText').textContent='Previewing as: '+PREVIEW_ROLE_LABELS[role];const adminTab=document.getElementById('tab-btn-admin');if(adminTab)adminTab.style.display='none';updateAllocUI();loadApprovalUI();loadHolidayOverrideUI();updateAccuracyTabVisibility();renderAll();}
+function exitRolePreview(){if(!_previewActive)return;STATE.adminUnlocked=_realAdminUnlocked;STATE.approverDepts=_realApproverDepts.slice();_previewActive=false;document.getElementById('previewBanner').style.display='none';document.getElementById('previewAsSelect').value='self';const adminTab=document.getElementById('tab-btn-admin');if(adminTab)adminTab.style.display='';updateAllocUI();loadApprovalUI();loadHolidayOverrideUI();updateAccuracyTabVisibility();renderAll();}
 // ─── APPROVAL ACCESS ─────────────────────────────────────────────────────────
 const APPROVAL_DEPT_LABELS={planning:'Planning',pickpack:'Pick Pack',logistics:'Logistics'};
 let _approverUsers={planning:[],pickpack:[],logistics:[]};
@@ -1060,10 +1415,11 @@ let _schedUpdEditIdx=null,_schedUpdWorking=[];
 function getProjectedWeeks(){const weeks=Object.keys(STATE.demands).sort();const existing=new Set(weeks);const result=[...weeks];const last=weeks[weeks.length-1];if(last){const parts=last.replace('W','').split('-');let w=parseInt(parts[0]),y=parseInt(parts[1]);for(let i=0;i<8;i++){w++;if(w>52){w=1;y++;}const lbl='W'+String(w).padStart(2,'0')+'-'+y;if(!existing.has(lbl)){result.push(lbl);existing.add(lbl);}}}return result;}
 function openScheduleUpdateModal(editIdx){_schedUpdEditIdx=editIdx!==undefined?editIdx:null;_schedUpdWorking=[];document.getElementById('scheduleUpdateModal').style.display='flex';const weeks=getProjectedWeeks();const sel=document.getElementById('schedUpdWeekSel');sel.innerHTML=weeks.map(w=>`<option value="${w}">${w}</option>`).join('');const baseSchedule=_schedUpdEditIdx!==null?JSON.parse(JSON.stringify(STATE.lhScheduleUpdates[_schedUpdEditIdx].schedule)):JSON.parse(JSON.stringify(STATE.lhSchedule));if(_schedUpdEditIdx!==null)sel.value=STATE.lhScheduleUpdates[_schedUpdEditIdx].startWeek;renderSchedUpdTable(baseSchedule);checkHolidayConflicts(sel.value);document.getElementById('schedUpdStatus').textContent='';}
 function closeScheduleUpdateModal(){document.getElementById('scheduleUpdateModal').style.display='none';_schedUpdEditIdx=null;_schedUpdWorking=[];}
-function renderSchedUpdTable(schedule){const shortDays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];document.getElementById('schedUpdLHBody').innerHTML=schedule.map((l,idx)=>{const dayCells=shortDays.map(d=>`<td style="text-align:center"><input type="checkbox" class="day-check" ${l.days[d]?'checked':''} onchange="schedUpdToggleDay(${idx},'${d}',this.checked)"></td>`).join('');const groupSel=`<select class="inline-sel" onchange="schedUpdSetGroup(${idx},this.value)"><option value="MW" ${l.group==='MW'?'selected':''}>MW</option><option value="Non-MW" ${l.group!=='MW'?'selected':''}>Non-MW</option></select>`;return`<tr><td><strong style="font-family:var(--mono);font-size:11px">${l.lh}</strong></td><td>${groupSel}</td>${dayCells}</tr>`;}).join('');}
+function renderSchedUpdTable(schedule){const shortDays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];document.getElementById('schedUpdLHBody').innerHTML=schedule.map((l,idx)=>{const dayCells=shortDays.map(d=>`<td style="text-align:center"><input type="checkbox" class="day-check" ${l.days[d]?'checked':''} onchange="schedUpdToggleDay(${idx},'${d}',this.checked)"></td>`).join('');const groupSel=`<select class="inline-sel" onchange="schedUpdSetGroup(${idx},this.value)"><option value="MW" ${l.group==='MW'?'selected':''}>MW</option><option value="Non-MW" ${l.group!=='MW'?'selected':''}>Non-MW</option></select>`;const isPlus1=l.cpt>=24;const timeStr=toTimeStr(l.cpt);const cptCell=`<input type="text" class="cpt-time-input" id="schedUpdCpt-${idx}" value="${timeStr}" style="width:72px" onchange="schedUpdSetCpt(${idx},this,document.getElementById('schedUpdCptP1-${idx}'))"><label class="cpt-plus1-label"><input type="checkbox" id="schedUpdCptP1-${idx}" ${isPlus1?'checked':''} onchange="schedUpdSetCpt(${idx},document.getElementById('schedUpdCpt-${idx}'),this)"> +1</label>`;return`<tr><td><strong style="font-family:var(--mono);font-size:11px">${l.lh}</strong></td><td>${groupSel}</td><td style="white-space:nowrap">${cptCell}</td>${dayCells}</tr>`;}).join('');}
 function schedUpdToggleDay(idx,day,val){if(!_schedUpdWorking.length)_schedUpdWorking=getCurrentSchedUpdSchedule();_schedUpdWorking[idx].days[day]=val;}
 function schedUpdSetGroup(idx,val){if(!_schedUpdWorking.length)_schedUpdWorking=getCurrentSchedUpdSchedule();_schedUpdWorking[idx].group=val;}
-function getCurrentSchedUpdSchedule(){const rows=document.getElementById('schedUpdLHBody').querySelectorAll('tr');const shortDays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];const base=_schedUpdEditIdx!==null?JSON.parse(JSON.stringify(STATE.lhScheduleUpdates[_schedUpdEditIdx].schedule)):JSON.parse(JSON.stringify(STATE.lhSchedule));rows.forEach((row,idx)=>{if(!base[idx])return;shortDays.forEach((d,di)=>{const cb=row.querySelectorAll('input[type=checkbox]')[di];if(cb)base[idx].days[d]=cb.checked;});const sel=row.querySelector('select');if(sel)base[idx].group=sel.value;});return base;}
+function schedUpdSetCpt(idx,timeInputEl,plus1El){if(!_schedUpdWorking.length)_schedUpdWorking=getCurrentSchedUpdSchedule();const base=parseTimeStr(timeInputEl.value.trim());if(base===null){timeInputEl.classList.add('invalid');return;}timeInputEl.classList.remove('invalid');_schedUpdWorking[idx].cpt=plus1El.checked?base+24:base;}
+function getCurrentSchedUpdSchedule(){const rows=document.getElementById('schedUpdLHBody').querySelectorAll('tr');const shortDays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];const base=_schedUpdEditIdx!==null?JSON.parse(JSON.stringify(STATE.lhScheduleUpdates[_schedUpdEditIdx].schedule)):JSON.parse(JSON.stringify(STATE.lhSchedule));rows.forEach((row,idx)=>{if(!base[idx])return;shortDays.forEach((d,di)=>{const cb=row.querySelectorAll('input.day-check')[di];if(cb)base[idx].days[d]=cb.checked;});const sel=row.querySelector('select');if(sel)base[idx].group=sel.value;const cptInput=row.querySelector('.cpt-time-input');const cptPlus1=row.querySelector('.cpt-plus1-label input[type=checkbox]');if(cptInput){const b=parseTimeStr(cptInput.value.trim());if(b!==null)base[idx].cpt=(cptPlus1&&cptPlus1.checked)?b+24:b;}});return base;}
 function checkHolidayConflicts(fromWeek){if(!fromWeek)return;const warn=document.getElementById('schedUpdHolidayWarning');const conflicts=[];Object.keys(STATE.demands).sort().filter(w=>w>=fromWeek).forEach(w=>{Object.entries(STATE.demands[w]||{}).forEach(([day,dd])=>{if(dd?.holidayOverride?.active){const dateStr=dd.date?new Date(dd.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';conflicts.push(`${day}${dateStr?' ('+dateStr+')':''} — ${w}`);}});});if(conflicts.length){warn.style.display='';warn.innerHTML='⚠ Holiday overrides exist on these days — review before saving:<br>'+conflicts.map(c=>`&nbsp;&nbsp;· ${c}`).join('<br>');}else{warn.style.display='none';}}
 function saveScheduleUpdate(){const startWeek=document.getElementById('schedUpdWeekSel').value;if(!startWeek)return;const schedule=getCurrentSchedUpdSchedule();_schedUpdWorking=[];if(!STATE.lhScheduleUpdates)STATE.lhScheduleUpdates=[];if(_schedUpdEditIdx!==null){STATE.lhScheduleUpdates[_schedUpdEditIdx]={startWeek,schedule};}else{STATE.lhScheduleUpdates.push({startWeek,schedule});}STATE.lhScheduleUpdates.sort((a,b)=>a.startWeek.localeCompare(b.startWeek));const status=document.getElementById('schedUpdStatus');status.innerHTML='<span class="spinner"></span><span style="color:var(--teal)">Saving...</span>';google.script.run.withSuccessHandler(()=>{status.innerHTML='<span style="color:var(--green)">✓ Saved</span>';setTimeout(()=>{closeScheduleUpdateModal();renderScheduleUpdatesList();renderAll();},900);}).withFailureHandler(err=>{status.innerHTML=`<span style="color:var(--red)">Error: ${err.message}</span>`;}).saveState(STATE);}
 function deleteScheduleUpdate(idx){if(!confirm('Delete this scheduled update?'))return;STATE.lhScheduleUpdates.splice(idx,1);google.script.run.withFailureHandler(()=>{}).saveState(STATE);renderScheduleUpdatesList();renderAll();}
@@ -1229,7 +1585,92 @@ function sendSlackNotify() {
     .sendPublishSlackNotify(_slackPendingWeek, _slackPendingDays, _slackPendingMode);
 }
 
+// ─── OPS UPDATE FLOAT (actuals day summary → Slack, test-mode) ────────────────
+let _opsUpdateVisible = false;
+let _opsUpdateMinimized = true;
+
+function buildOpsUpdateRows() {
+  const week = STATE.currentWeek;
+  if (!week) return [];
+  const days = DAYS_ORDER.filter(d => STATE.demands[week]?.[d]?.mode === 'actual');
+  return days.map(day => {
+    const dayData = STATE.demands[week][day];
+    const saved = dayData.levers || {};
+    const ps = saved.pickStart ?? DEFAULT_PICK_START;
+    const hov = dayData.holidayOverride;
+    const lines = (hov?.active && hov.lines) ? hov.lines : (autoLines(day) || (STATE.lines && STATE.lines[day]) || 2);
+    const p = { lines, uph: saved.uph ?? STATE.thruputs[day] ?? DEFAULT_UPH_FALLBACK, startH: Math.min(16, Math.floor(ps)), shiftLen: 10, pickStart: ps, mwStart: saved.allocStart ?? DEFAULT_ALLOC_START };
+    const sim = simulate(day, p);
+    if (!sim) return { day, units: 0, lines, start: ft(ps), alloc: ft(p.mwStart), risks: [] };
+    const totalUnits = sim.result.reduce((s, r) => s + r.vol, 0);
+    const risks = sim.result.filter(r => !r.levelLoaded && r.st !== 'ok').map(r => {
+      if (r.st === 'late') return `${r.lh} missed CPT by ${Math.round(Math.abs(r.buf) * 60)} mins`;
+      return `${r.lh} ${Math.round(Math.abs(r.bufVsIdeal) * 60)} mins past ideal`;
+    });
+    return { day, units: totalUnits, lines, start: ft(ps), alloc: ft(p.mwStart), risks };
+  });
+}
+
+function renderOpsUpdateWidget() {
+  const el = document.getElementById('opsUpdateFloat');
+  if (!_opsUpdateVisible) { el.style.display = 'none'; return; }
+  const rows = buildOpsUpdateRows();
+  if (_opsUpdateMinimized) {
+    el.innerHTML = `<button class="ops-pill" onclick="toggleOpsUpdateMinimize()">📊 Ops Update (${rows.length})</button>`;
+  } else {
+    const tableRows = rows.map(r => {
+      const riskHtml = r.risks.length ? `<span class="ops-risk-warn">${r.risks.join(', ')}</span>` : `<span class="ops-risk-ok">✅ On track</span>`;
+      return `<tr><td>${r.day.slice(0,3)}</td><td>${r.units.toLocaleString()}</td><td>${r.lines}</td><td>${r.start}</td><td>${r.alloc}</td><td>${riskHtml}</td></tr>`;
+    }).join('');
+    el.innerHTML = `<div class="ops-float-header"><span>📊 ops update — ${rows.length} day${rows.length===1?'':'s'}</span><div class="ops-float-header-btns"><button onclick="toggleOpsUpdateMinimize()" title="minimize">–</button><button onclick="dismissOpsUpdateWidget()" title="close">✕</button></div></div><div class="ops-float-body"><table class="ops-table"><thead><tr><th>Day</th><th>Units</th><th>Lines</th><th>Start</th><th>Alloc</th><th>Risk</th></tr></thead><tbody>${tableRows}</tbody></table><div class="ops-float-actions"><button class="slack-send-btn ops-send-btn" onclick="sendOpsUpdate()">send test to me</button><button class="slack-dismiss-btn" onclick="toggleOpsUpdateMinimize()">minimize</button></div></div>`;
+  }
+  el.style.display = 'block';
+}
+
+function showOpsUpdateWidget() {
+  _opsUpdateVisible = true;
+  _opsUpdateMinimized = true;
+  renderOpsUpdateWidget();
+}
+
+function toggleOpsUpdateMinimize() {
+  _opsUpdateMinimized = !_opsUpdateMinimized;
+  renderOpsUpdateWidget();
+}
+
+function dismissOpsUpdateWidget() {
+  _opsUpdateVisible = false;
+  renderOpsUpdateWidget();
+}
+
+function sendOpsUpdate() {
+  const rows = buildOpsUpdateRows();
+  if (!rows.length) return;
+  const text = [`*Pick Tock — Ops Update* (${STATE.currentWeek})`, ''].concat(rows.map(r => {
+    const riskLine = r.risks.length ? r.risks.join(', ') : '✅ On track';
+    return `*${r.day}*\nUnits: ${r.units.toLocaleString()} · Lines: ${r.lines} · Start: ${r.start} · Alloc: ${r.alloc}\nRisk: ${riskLine}\n`;
+  })).join('\n');
+  const btn = document.querySelector('.ops-send-btn');
+  btn.textContent = '⏳ sending...';
+  btn.disabled = true;
+  google.script.run
+    .withSuccessHandler(() => {
+      btn.textContent = '✓ sent!';
+      setTimeout(() => dismissOpsUpdateWidget(), 1500);
+    })
+    .withFailureHandler(err => {
+      btn.textContent = 'send test to me';
+      btn.disabled = false;
+      console.error('Ops update send failed:', err.message);
+    })
+    .sendOpsUpdateSlack(text);
+}
+
 </script>
+
+<!-- OPS UPDATE FLOAT -->
+<div id="opsUpdateFloat" class="ops-float" style="display:none"></div>
+
 
 <!-- SLACK NOTIFY FLOAT -->
 <div id="slackFloat" class="slack-float" style="display:none">

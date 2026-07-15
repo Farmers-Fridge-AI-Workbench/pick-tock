@@ -698,7 +698,6 @@ function pushDepartureTimes() {
   if (!Object.keys(volByLH).length) { Logger.log('pushDepartureTimes: empty volume for ' + targetDay); return; }
 
   const lhSchedule = state.lhSchedule || [];
-  const cptOverrides = state.cptOverrides || {};
   const thruputs = state.thruputs || {};
 
   const savedLevers = dayData.levers || {};
@@ -723,7 +722,6 @@ function pushDepartureTimes() {
 
   function getCpt(lh) {
     if (hov && hov.active && hov.cpts && hov.cpts[lh] !== undefined) return hov.cpts[lh];
-    if (cptOverrides[lh] !== undefined) return cptOverrides[lh];
     const entry = lhSchedule.find(l => l.lh === lh);
     return entry ? entry.cpt : 23;
   }
@@ -836,19 +834,6 @@ function saveThruputs(thruputs) {
   let state = getState() || {};
   state.thruputs = thruputs;
   saveState(state);
-  return { ok: true };
-}
-
-function saveCptOverrides(overrides) {
-  const user = getCurrentUser();
-  if (!user.isAdmin) throw new Error('Not authorized');
-  try {
-    const existing = JSON.parse(PropertiesService.getScriptProperties().getProperty(CPT_KEY) || '{}');
-    Object.entries(overrides).forEach(([lh, val]) => {
-      if (existing[lh] !== val) writeAuditLog(user.email, 'cpt_change', lh, existing[lh], val, '', '');
-    });
-  } catch(e) {}
-  PropertiesService.getScriptProperties().setProperty(CPT_KEY, JSON.stringify(overrides));
   return { ok: true };
 }
 
@@ -1131,4 +1116,395 @@ function sendPublishSlackNotify(weekLabel, days, mode) {
   UrlFetchApp.fetch(webhookUrl, options);
   writeAuditLog(user.email, 'slack_notify', 'publish', '', weekLabel + ' (' + mode + ')', weekLabel, '');
   return { ok: true };
+}
+
+// ─── OPS UPDATE SLACK (actuals day summary) ───────────────────────────────────
+// Uses its own Script Property key so test-sends can't accidentally land in a
+// live channel while picktock_slack_webhook is pointed elsewhere.
+function sendOpsUpdateSlack(text) {
+  const user = getCurrentUser();
+  if (!user.isAdmin) throw new Error('Not authorized');
+  const webhookUrl = PropertiesService.getScriptProperties().getProperty('picktock_ops_update_webhook');
+  if (!webhookUrl) throw new Error('Ops update webhook not configured — add picktock_ops_update_webhook in Script Properties.');
+  const payload = JSON.stringify({ text });
+  const options = { method: 'post', contentType: 'application/json', payload };
+  UrlFetchApp.fetch(webhookUrl, options);
+  writeAuditLog(user.email, 'slack_notify', 'ops_update', '', '', '', '');
+  return { ok: true };
+}
+
+// ─── CARRIER / LOAD NUMBER (pulled from Logistics' Load Tracker) ──────────────
+// Storage lives inline on each published day, same place as vol/marketVol:
+//   state.demands[week][day].carrierData = { [lh]: {carrier, loadNumber, scheduledAppt, manual} }
+// manual:true means a human corrected it — auto-pull skips that lh until cleared.
+
+const TRUCK_SCHEDULING_SHEET_ID = '1_676A8_ynIGuf2aJLNp1Hj9eGV12DKCaiTh_ejnLIdE';
+const LOAD_TRACKER_TAB          = 'Load Tracker';
+const CARRIER_EMAILS_KEY        = 'picktock_carrier_emails';
+const LINEHAUL_SCHEDULE_SHEET_ID = '1uoLu-eYfKvIBZZ9lC7EFdDD8NsXIGyKPxGCW9CoXXjc';
+const CARRIER_CONTACTS_TAB       = 'Carrier Contacts';
+
+// Load Tracker destination strings are prefixed with one or more state codes
+// (e.g. "MI_Detroit", "IN_OH_Indianapolis", "NJ_NY_PA_New_York") and sometimes
+// truncated/suffixed (e.g. a Nashville terminal string). Match on a keyword
+// contained anywhere in the normalized remainder rather than an exact string,
+// then resolve through the existing MARKET_LH_MAP so there's one source of truth.
+const LOAD_TRACKER_DEST_ALIASES = {
+  'new_york':     'New York City',
+  'washington':   'DC / Baltimore',
+  'st_louis':     'St. Louis',
+  'los_angeles':  'Los Angeles',
+  'san_diego':    'San Diego',
+  'las_vegas':    'Las Vegas',
+  'indianapolis': 'Indianapolis',
+  'columbus':     'Columbus',
+  'cincinnati':   'Cincinnati',
+  'detroit':      'Detroit',
+  'cleveland':    'Cleveland',
+  'pittsburgh':   'Pittsburgh',
+  'dallas':       'Dallas',
+  'houston':      'Houston',
+  'austin':       'Austin',
+  'san_antonio':  'San Antonio',
+  'minneapolis':  'Minneapolis',
+  'nashville':    'Nashville',
+  'milwaukee':    'Milwaukee',
+  'philadelphia': 'Philadelphia',
+  'new_jersey':   'New Jersey',
+  'boston':       'Boston',
+};
+
+function mapDestinationToLH(rawDest) {
+  if (!rawDest) return null;
+  let s = String(rawDest).trim();
+  s = s.replace(/^([A-Z]{2,3}_)+/, ''); // strip leading state-code segment(s)
+  const norm = s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  for (const key in LOAD_TRACKER_DEST_ALIASES) {
+    if (norm.indexOf(key) !== -1) {
+      return MARKET_LH_MAP[LOAD_TRACKER_DEST_ALIASES[key]] || null;
+    }
+  }
+  return null;
+}
+
+function findLoadTrackerHeaderRow(allData) {
+  for (let r = 0; r < Math.min(5, allData.length); r++) {
+    if (allData[r].some(c => String(c).trim() === 'Load Number')) return r;
+  }
+  return 1; // fallback: second row, matches observed layout
+}
+
+function colIndexByHeader(headerRow, name) {
+  return headerRow.findIndex(c => String(c).trim().toLowerCase() === name.toLowerCase());
+}
+
+function canManageCarrierData(user) {
+  return user.isAdmin || (user.approverDepts || []).includes('logistics');
+}
+
+// Authed entry point for the manual "refresh" button.
+function pullCarrierLoadData() {
+  const user = getCurrentUser();
+  if (!canManageCarrierData(user)) throw new Error('Not authorized');
+  const result = pullCarrierLoadDataCore();
+  writeAuditLog(user.email, 'carrier_pull', 'carrierData', '', result.matched + ' matched, ' + result.unmapped.length + ' unmapped', '', '');
+  return result;
+}
+
+// Unauthenticated core — used by the daily trigger, which has no interactive user.
+function pullCarrierLoadDataCore() {
+  const ss = SpreadsheetApp.openById(TRUCK_SCHEDULING_SHEET_ID);
+  const sheet = ss.getSheetByName(LOAD_TRACKER_TAB);
+  if (!sheet) throw new Error('Tab "' + LOAD_TRACKER_TAB + '" not found in Truck Scheduling sheet');
+
+  const allData = sheet.getDataRange().getValues();
+  const headerRowIdx = findLoadTrackerHeaderRow(allData);
+  const header = allData[headerRowIdx];
+
+  const col = {
+    contractedCarrier: colIndexByHeader(header, 'Contracted Carrier'),
+    actualCarrier:      colIndexByHeader(header, 'Actual Carrier'),
+    loadNumber:         colIndexByHeader(header, 'Load Number'),
+    shippingFrom:       colIndexByHeader(header, 'Shipping From'),
+    shippingAppt:       colIndexByHeader(header, 'Shipping Appt'),
+    expectedShipDate:   colIndexByHeader(header, 'Expected Ship Date'),
+    destLeg1:           colIndexByHeader(header, 'Destination - Leg 1'),
+  };
+  ['loadNumber', 'shippingFrom', 'expectedShipDate', 'destLeg1'].forEach(k => {
+    if (col[k] === -1) throw new Error('Load Tracker column not found: ' + k);
+  });
+
+  const state = getState() || { demands: {} };
+  if (!state.demands || !Object.keys(state.demands).length) {
+    return { ok: true, matched: 0, unmapped: [], skippedNoPublish: 0 };
+  }
+
+  // Only days already published in Pick Tock can receive carrier data —
+  // match purely on calendar date so we don't need to reproduce week-numbering logic.
+  const dateLookup = {};
+  Object.entries(state.demands).forEach(([week, days]) => {
+    Object.entries(days).forEach(([day, dayData]) => {
+      if (dayData && dayData.date) dateLookup[dayData.date] = { week, day };
+    });
+  });
+
+  const tz = Session.getScriptTimeZone();
+  const unmappedSet = new Set();
+  let matched = 0, skippedNoPublish = 0;
+  const updates = {}; // week -> day -> lh -> {carrier, loadNumber, scheduledAppt}
+
+  for (let r = headerRowIdx + 1; r < allData.length; r++) {
+    const row = allData[r];
+    const shipFrom = String(row[col.shippingFrom] || '').trim();
+    if (!/chicago/i.test(shipFrom)) continue;
+
+    const shipDateVal = row[col.expectedShipDate];
+    if (!(shipDateVal instanceof Date)) continue;
+    const dateStr = Utilities.formatDate(shipDateVal, tz, 'yyyy-MM-dd');
+    const loc = dateLookup[dateStr];
+    if (!loc) { skippedNoPublish++; continue; }
+
+    const destRaw = row[col.destLeg1];
+    const lh = mapDestinationToLH(destRaw);
+    if (!lh) { if (destRaw) unmappedSet.add(String(destRaw).trim()); continue; }
+
+    const loadNumber = String(row[col.loadNumber] || '').trim();
+    if (!loadNumber) continue;
+    const carrier = String(row[col.actualCarrier] || '').trim() || String(row[col.contractedCarrier] || '').trim();
+
+    let scheduledAppt = '';
+    const apptVal = col.shippingAppt !== -1 ? row[col.shippingAppt] : null;
+    if (apptVal instanceof Date) scheduledAppt = Utilities.formatDate(apptVal, tz, 'h:mm a');
+
+    if (!updates[loc.week]) updates[loc.week] = {};
+    if (!updates[loc.week][loc.day]) updates[loc.week][loc.day] = {};
+    updates[loc.week][loc.day][lh] = { carrier, loadNumber, scheduledAppt };
+    matched++;
+  }
+
+  Object.entries(updates).forEach(([week, days]) => {
+    Object.entries(days).forEach(([day, lhData]) => {
+      if (!state.demands[week] || !state.demands[week][day]) return;
+      const existing = state.demands[week][day].carrierData || {};
+      const merged = Object.assign({}, existing);
+      Object.entries(lhData).forEach(([lh, data]) => {
+        if (existing[lh] && existing[lh].manual) return; // don't clobber a human correction
+        merged[lh] = Object.assign({}, data, { manual: false });
+      });
+      state.demands[week][day].carrierData = merged;
+    });
+  });
+
+  state.lastModified = new Date().toISOString();
+  const stateToSave = Object.assign({}, state);
+  delete stateToSave.cptOverrides;
+  PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+
+  return { ok: true, matched, unmapped: Array.from(unmappedSet), skippedNoPublish };
+}
+
+// Daily trigger target — no interactive user, so it can't go through the authed
+// wrapper. Install via createDailyCarrierPullTrigger() (one-time, run manually
+// from the Apps Script editor).
+function dailyCarrierPull() {
+  try {
+    const result = pullCarrierLoadDataCore();
+    Logger.log('dailyCarrierPull: ' + result.matched + ' matched, ' + result.unmapped.length + ' unmapped, ' + result.skippedNoPublish + ' skipped (not yet published)');
+  } catch (e) {
+    Logger.log('dailyCarrierPull failed: ' + e.message);
+  }
+}
+
+function createDailyCarrierPullTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'dailyCarrierPull') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('dailyCarrierPull').timeBased().atHour(0).nearMinute(15).everyDays(1).create();
+}
+
+function saveCarrierOverride(weekLabel, day, lh, carrier, loadNumber) {
+  const user = getCurrentUser();
+  if (!canManageCarrierData(user)) throw new Error('Not authorized');
+  let state = getState() || { demands: {} };
+  if (!state.demands || !state.demands[weekLabel] || !state.demands[weekLabel][day]) {
+    throw new Error('Day not found — publish this day before assigning a carrier');
+  }
+  const dayData = state.demands[weekLabel][day];
+  if (!dayData.carrierData) dayData.carrierData = {};
+  const existing = dayData.carrierData[lh] || {};
+  dayData.carrierData[lh] = {
+    carrier: carrier || '',
+    loadNumber: loadNumber || '',
+    scheduledAppt: existing.scheduledAppt || '',
+    manual: true,
+  };
+  writeAuditLog(
+    user.email, 'carrier_override', lh,
+    (existing.carrier || '') + ' / ' + (existing.loadNumber || ''),
+    (carrier || '') + ' / ' + (loadNumber || ''),
+    weekLabel, day
+  );
+  state.lastModified = new Date().toISOString();
+  const stateToSave = Object.assign({}, state);
+  delete stateToSave.cptOverrides;
+  PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  return { ok: true };
+}
+
+function clearCarrierOverride(weekLabel, day, lh) {
+  const user = getCurrentUser();
+  if (!canManageCarrierData(user)) throw new Error('Not authorized');
+  let state = getState() || { demands: {} };
+  const dayData = state.demands && state.demands[weekLabel] && state.demands[weekLabel][day];
+  if (!dayData || !dayData.carrierData || !dayData.carrierData[lh]) return { ok: true };
+  delete dayData.carrierData[lh];
+  writeAuditLog(user.email, 'carrier_override_clear', lh, '', '', weekLabel, day);
+  state.lastModified = new Date().toISOString();
+  const stateToSave = Object.assign({}, state);
+  delete stateToSave.cptOverrides;
+  PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  return { ok: true };
+}
+
+function getCarrierEmails() {
+  const props = PropertiesService.getScriptProperties();
+  try { return JSON.parse(props.getProperty(CARRIER_EMAILS_KEY) || '{}'); } catch (e) { return {}; }
+}
+
+function saveCarrierEmails(emailMap) {
+  const user = getCurrentUser();
+  if (!user.isAdmin) throw new Error('Not authorized');
+  PropertiesService.getScriptProperties().setProperty(CARRIER_EMAILS_KEY, JSON.stringify(emailMap));
+  return { ok: true };
+}
+
+function findHeaderRowByColumns(allData, requiredHeaders) {
+  for (let r = 0; r < Math.min(5, allData.length); r++) {
+    const rowVals = allData[r].map(c => String(c).trim());
+    if (requiredHeaders.every(h => rowVals.indexOf(h) !== -1)) return r;
+  }
+  return -1;
+}
+
+// Pulls Carrier -> Primary Email from the Linehaul Schedule sheet's "Carrier Contacts"
+// tab (col A = Carrier / Broker, col E = Primary Email, found by header name so a
+// column reorder doesn't silently break the match). Same "manual wins" pattern as
+// carrier/load# on the Logistics tab: a human-entered email is never overwritten by
+// the pull until it's removed.
+function pullCarrierEmailsCore() {
+  const ss = SpreadsheetApp.openById(LINEHAUL_SCHEDULE_SHEET_ID);
+  const sheet = ss.getSheetByName(CARRIER_CONTACTS_TAB);
+  if (!sheet) throw new Error('Tab "' + CARRIER_CONTACTS_TAB + '" not found in Linehaul Schedule sheet');
+
+  const allData = sheet.getDataRange().getValues();
+  const headerRowIdx = findHeaderRowByColumns(allData, ['Carrier / Broker', 'Primary Email']);
+  if (headerRowIdx === -1) throw new Error('Could not find header row with "Carrier / Broker" and "Primary Email"');
+  const header = allData[headerRowIdx].map(c => String(c).trim());
+  const colCarrier = header.indexOf('Carrier / Broker');
+  const colEmail = header.indexOf('Primary Email');
+  const colContact = header.indexOf('Account Contact');
+
+  const existing = getCarrierEmails();
+  const merged = Object.assign({}, existing);
+  let matched = 0;
+  for (let r = headerRowIdx + 1; r < allData.length; r++) {
+    const carrier = String(allData[r][colCarrier] || '').trim();
+    const email = String(allData[r][colEmail] || '').trim();
+    if (!carrier || !email) continue;
+    if (existing[carrier] && existing[carrier].manual) continue; // don't clobber a human correction
+    const contactRaw = colContact !== -1 ? String(allData[r][colContact] || '').trim() : '';
+    const contactFirstName = contactRaw ? contactRaw.split(/\s+/)[0] : '';
+    merged[carrier] = { email, contactName: contactFirstName, manual: false };
+    matched++;
+  }
+  PropertiesService.getScriptProperties().setProperty(CARRIER_EMAILS_KEY, JSON.stringify(merged));
+  return { ok: true, matched };
+}
+
+// Authed entry point for the manual "refresh" button (admin-only — this is a small,
+// infrequently-changed list, unlike carrier/load# which logistics approvers touch daily).
+function pullCarrierEmails() {
+  const user = getCurrentUser();
+  if (!user.isAdmin) throw new Error('Not authorized');
+  const result = pullCarrierEmailsCore();
+  writeAuditLog(user.email, 'carrier_emails_pull', 'carrierEmails', '', result.matched + ' matched', '', '');
+  return result;
+}
+
+// Daily trigger target — no interactive user, so it can't go through the authed wrapper.
+// Install via createDailyCarrierEmailsPullTrigger() (one-time, run manually from the
+// Apps Script editor).
+function dailyCarrierEmailsPull() {
+  try {
+    const result = pullCarrierEmailsCore();
+    Logger.log('dailyCarrierEmailsPull: ' + result.matched + ' matched');
+  } catch (e) {
+    Logger.log('dailyCarrierEmailsPull failed: ' + e.message);
+  }
+}
+
+function createDailyCarrierEmailsPullTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'dailyCarrierEmailsPull') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('dailyCarrierEmailsPull').timeBased().atHour(0).nearMinute(30).everyDays(1).create();
+}
+
+function emailCarrier(toEmail, subject, body) {
+  const user = getCurrentUser();
+  if (!canManageCarrierData(user)) throw new Error('Not authorized');
+  if (!toEmail) throw new Error('No email on file for this carrier — add one in Admin → Carrier Emails');
+  MailApp.sendEmail({ to: toEmail, subject: subject, body: body, replyTo: user.email });
+  writeAuditLog(user.email, 'carrier_email', toEmail, '', subject, '', '');
+  return { ok: true };
+}
+
+// ─── LINEHAUL CONTACTS (read-only reference tab) ──────────────────────────────
+// Reads the Carrier Contacts tab fresh every call — nothing here is persisted to
+// Script Properties. It's reference data only (not scheduling logic), so there's
+// no override/merge story needed like carrier/load# or carrier emails have.
+// Visible to any logged-in user — no admin/approver gate.
+function getLinehaulContacts() {
+  const ss = SpreadsheetApp.openById(LINEHAUL_SCHEDULE_SHEET_ID);
+  const sheet = ss.getSheetByName(CARRIER_CONTACTS_TAB);
+  if (!sheet) throw new Error('Tab "' + CARRIER_CONTACTS_TAB + '" not found in Linehaul Schedule sheet');
+
+  const allData = sheet.getDataRange().getValues();
+  const headerRowIdx = findHeaderRowByColumns(allData, ['Carrier / Broker', 'Primary Email']);
+  if (headerRowIdx === -1) throw new Error('Could not find header row with "Carrier / Broker" and "Primary Email"');
+  const header = allData[headerRowIdx].map(c => String(c).trim());
+  const col = name => header.indexOf(name);
+  const cols = {
+    carrier: col('Carrier / Broker'),
+    disruption: col('Primary Contact for Service Disruption'),
+    contact: col('Account Contact'),
+    phone: col('Primary Phone Number'),
+    email: col('Primary Email'),
+    secNames: col('Secondary Name(s)'),
+    secPhones: col('Secondary Phone Number(s)'),
+    secEmails: col('Secondary Email(s)'),
+    slack: col('Slack'),
+    portal: col('Portal'),
+  };
+  const cell = (row, key) => cols[key] !== -1 ? String(row[cols[key]] || '').trim() : '';
+
+  const contacts = [];
+  for (let r = headerRowIdx + 1; r < allData.length; r++) {
+    const row = allData[r];
+    const carrier = cell(row, 'carrier');
+    if (!carrier) continue;
+    contacts.push({
+      carrier,
+      disruption: cell(row, 'disruption'),
+      contact: cell(row, 'contact'),
+      phone: cell(row, 'phone'),
+      email: cell(row, 'email'),
+      secNames: cell(row, 'secNames'),
+      secPhones: cell(row, 'secPhones'),
+      secEmails: cell(row, 'secEmails'),
+      slack: cell(row, 'slack'),
+      portal: cell(row, 'portal'),
+    });
+  }
+  return contacts;
 }
