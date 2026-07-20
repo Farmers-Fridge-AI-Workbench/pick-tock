@@ -18,8 +18,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px}
-.shell{display:grid;grid-template-columns:1fr;grid-template-rows:56px 1fr;height:100vh;overflow:hidden}
-.topbar{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface)}
+.shell{display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr;height:100vh;height:100dvh;overflow:hidden}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface);min-width:0}
 .main{overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
 .logo{font-family:var(--mono);font-size:18px;font-weight:500;letter-spacing:-.5px;color:var(--text)}
 .logo em{color:var(--teal);font-style:normal}
@@ -50,7 +50,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .nav-tab.admin-tab:hover{color:#000;opacity:.85}
 .tab-view{display:none;flex-direction:column;gap:16px}
 .tab-view.active{display:flex}
-.topbar-day-tab{padding:5px 14px;border-radius:5px;border:1px solid transparent;cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:500;transition:all .15s;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2}
+.topbar-day-tab{padding:5px 14px;border-radius:5px;border:1px solid transparent;cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:500;transition:all .15s;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;flex-shrink:0}
 .topbar-day-tab.mode-forecast{background:rgba(245,158,11,0.18);border-color:rgba(245,158,11,0.3);color:rgba(245,158,11,0.6)}
 .topbar-day-tab.mode-actual{background:rgba(34,197,94,0.18);border-color:rgba(34,197,94,0.3);color:rgba(34,197,94,0.6)}
 .topbar-day-tab.mode-none{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.35)}
@@ -66,7 +66,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .kpi-val{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1;margin-bottom:2px}
 .kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .kpi-val.green{color:var(--green)}.kpi-val.amber{color:var(--amber)}.kpi-val.red{color:var(--red)}.kpi-val.blue{color:var(--accent)}
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;min-width:0}
 .panel-title{font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
 .levers-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
 .levers-sidebar{width:230px;flex-shrink:0;align-self:flex-start;position:sticky;top:0}
@@ -164,8 +164,11 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 @keyframes fire-pulse{0%,100%{background:rgba(239,68,68,0.85);box-shadow:0 0 0 0 rgba(239,68,68,0.5);color:#fff}50%{background:rgba(239,68,68,1);box-shadow:0 0 0 6px rgba(239,68,68,0);color:#fff}}
+@keyframes pick-start-blink{0%,100%{border-color:var(--red);box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{border-color:#ff8080;box-shadow:0 0 0 4px rgba(239,68,68,0)}}
+.pick-start-warn{border-color:var(--red)!important;animation:pick-start-blink 1s ease-in-out infinite}
 .topbar-day-tab.day-card--alert{animation:fire-pulse 1.4s ease-in-out infinite!important;border-color:var(--red)!important}
-@media(max-width:900px){.kpi-row{grid-template-columns:repeat(3,1fr)}.admin-grid{grid-template-columns:1fr}#scheduleContent{flex-direction:column}.levers-sidebar{width:100%;position:static}.levers-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:900px){.kpi-row{grid-template-columns:repeat(3,1fr)}.admin-grid{grid-template-columns:1fr}#scheduleContent{flex-direction:column}.levers-sidebar{width:100%;position:static}.levers-grid{grid-template-columns:repeat(2,1fr)}.topbar{flex-wrap:wrap;height:auto;padding:8px 16px}#topbarDayTabs{flex-basis:100%;margin-left:0;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-top:8px;margin-top:4px;border-top:1px solid var(--border)}}
+@media(max-width:480px){#break30TimeInput,#break15TimeInput{font-size:16px!important}.kpi-row{grid-template-columns:repeat(2,1fr)}.panel{padding:10px 12px}}
 
 /* ── NOTES DROPDOWN ── */
 .notes-anchor{position:relative;display:inline-block;}
@@ -400,12 +403,14 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
           <div class="panel"><div class="panel-title">shift timeline</div><div class="tl-wrap" id="tlWrap"></div></div>
           <div class="panel">
             <div class="panel-title">truck sequence</div>
+            <div style="overflow-x:auto">
             <table class="seq-table">
               <thead><tr><th style="width:26px">#</th><th style="width:155px">Linehaul</th><th style="width:58px">CPT</th><th style="width:76px">Volume</th><th style="width:68px">Vol/line</th><th>Markets</th><th style="width:68px">Start</th><th style="width:68px">Finish</th><th style="width:130px">Rec. truck arrival</th><th style="width:80px">Ideal dep.</th><th style="width:68px">Buffer</th><th>Status</th></tr></thead>
               <tbody id="seqBody"></tbody>
             </table>
+            </div>
           </div>
-          <div class="panel"><div class="panel-title">pick pack plan — per line workload</div><table class="seq-table"><thead id="lineplanHead"></thead><tbody id="lineplanBody"></tbody></table></div>
+          <div class="panel"><div class="panel-title">pick pack plan — per line workload</div><div style="overflow-x:auto"><table class="seq-table"><thead id="lineplanHead"></thead><tbody id="lineplanBody"></tbody></table></div></div>
         </div>
       </div>
     </div>
@@ -593,7 +598,7 @@ const DAYS_ORDER=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday',
 const DAY_SHORT={Monday:'Mon',Tuesday:'Tue',Wednesday:'Wed',Thursday:'Thu',Friday:'Fri',Saturday:'Sat',Sunday:'Sun'};
 const LH_COLORS={'IL PM':'#4ade80','IL AM':'#4f8ef7','NE':'#f97316','S (DAL, HOU, AUS, SAT)':'#f59e0b','W (LA, SD)':'#a78bfa','WI (MKE, MAD)':'#06b6d4','MI':'#ef4444','MN':'#ec4899','INDY (IND, OH)':'#2dd4bf','STL':'#fb923c','TN':'#84cc16'};
 let STATE={lhSchedule:JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE)),thruputs:{...DEFAULT_THRUPUTS},lines:{...DEFAULT_LINES},lineThreshold:[{vol:47000,lines:3}],laborConfig:{empPerLine:12,replenisher:2,leads:2,boxBuilders:2,hourlyRate:24.39},chicagoSplit:{ilPm:0.60,ilAm:0.40},demands:{},cptOverrides:{},lhScheduleUpdates:[],currentWeek:null,currentDay:null,currentLines:2,adminUnlocked:false,approverDepts:[],thruputUpdatedAt:null,break30:{enabled:true,time:null},break15:{enabled:true,time:null},logisticsWeek:null,logisticsCarrierFilter:'',carrierEmails:{},_currentUserEmail:''};
-function parseTimeStr(s){if(!s)return null;s=s.trim();const m=s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);if(!m)return null;let h=parseInt(m[1]),min=parseInt(m[2]);const ap=m[3].toUpperCase();if(h<1||h>12||min<0||min>59)return null;if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h+min/60;}
+function parseTimeStr(s){if(!s)return null;s=s.trim();const m=s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);if(m){let h=parseInt(m[1]),min=parseInt(m[2]);const ap=m[3].toUpperCase();if(h<1||h>12||min<0||min>59)return null;if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h+min/60;}const m24=s.match(/^(\d{1,2}):(\d{2})$/);if(m24){let h=parseInt(m24[1]),min=parseInt(m24[2]);if(h<0||h>23||min<0||min>59)return null;return h+min/60;}return null;}
 function toTimeStr(h){const norm=h>=24?h-24:h;const tm=Math.round(norm*60),hh=Math.floor(tm/60)%24,mm=tm%60,ap=hh>=12?'PM':'AM';return`${hh%12||12}:${String(mm).padStart(2,'0')} ${ap}`;}
 // One-time migration: cptOverrides used to be the "real" CPT (it almost always won
 // over lhSchedule.cpt). Fold any override values into lhSchedule.cpt so nothing
@@ -636,8 +641,9 @@ function updateAccuracyTabVisibility(){
   }
 }
 function getDayLevers(){const saved=STATE.demands[STATE.currentWeek]?.[STATE.currentDay]?.levers||{};return{uph:'uph' in saved?saved.uph:(STATE.thruputs[STATE.currentDay]||DEFAULT_UPH_FALLBACK),pickStart:'pickStart' in saved?saved.pickStart:DEFAULT_PICK_START,allocStart:'allocStart' in saved?saved.allocStart:DEFAULT_ALLOC_START,break30:'break30' in saved?saved.break30:{enabled:true,time:null},break15:'break15' in saved?saved.break15:{enabled:true,time:null}};}
-function loadDayLevers(){if(!STATE.currentDay)return;const lv=getDayLevers();document.getElementById('upmSlider').value=lv.uph;const ph=Math.floor(lv.pickStart),pm=Math.round((lv.pickStart-ph)*60);document.getElementById('pickStartInput').value=String(ph).padStart(2,'0')+':'+String(pm).padStart(2,'0');const hh=Math.floor(lv.allocStart),mm=Math.round((lv.allocStart-hh)*60);document.getElementById('allocTimeInput').value=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');document.getElementById('allocReadOnly').textContent=ft(lv.allocStart);updateAllocUI();loadApprovalUI();loadHolidayOverrideUI();STATE.break30=lv.break30||{enabled:true,time:null};STATE.break15=lv.break15||{enabled:true,time:null};renderBreakToggles();}
-function onLeverInput(){_saveLeversSilent(false);updateLabels();}
+function loadDayLevers(){if(!STATE.currentDay)return;const lv=getDayLevers();document.getElementById('upmSlider').value=lv.uph;const ph=Math.floor(lv.pickStart),pm=Math.round((lv.pickStart-ph)*60);document.getElementById('pickStartInput').value=String(ph).padStart(2,'0')+':'+String(pm).padStart(2,'0');checkPickStartWarn();const hh=Math.floor(lv.allocStart),mm=Math.round((lv.allocStart-hh)*60);document.getElementById('allocTimeInput').value=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');document.getElementById('allocReadOnly').textContent=ft(lv.allocStart);updateAllocUI();loadApprovalUI();loadHolidayOverrideUI();STATE.break30=lv.break30||{enabled:true,time:null};STATE.break15=lv.break15||{enabled:true,time:null};renderBreakToggles();}
+function checkPickStartWarn(){const el=document.getElementById('pickStartInput');if(!el)return;el.classList.toggle('pick-start-warn',getPickStartVal()<DEFAULT_PICK_START);}
+function onLeverInput(){_saveLeversSilent(false);updateLabels();checkPickStartWarn();}
 function onAllocChange(){document.getElementById('allocReadOnly').textContent=ft(getAllocStart());updateLabels();}
 function saveAllocStart(){if(!STATE.adminUnlocked&&!STATE.approverDepts.includes('pickpack'))return;_saveLeversSilent(true);const btn=document.getElementById('allocSaveBtn');btn.textContent='✓';btn.style.color='var(--green)';btn.style.borderColor='var(--green)';setTimeout(()=>{btn.textContent='save';btn.style.color='var(--teal)';btn.style.borderColor='var(--teal)';},1400);}
 function _saveLeversSilent(includeAlloc){if(!STATE.currentWeek||!STATE.currentDay)return;const dayData=STATE.demands[STATE.currentWeek]?.[STATE.currentDay];if(!dayData)return;const existingLevers=dayData.levers||{};const levers={uph:+document.getElementById('upmSlider').value,pickStart:getPickStartVal(),allocStart:includeAlloc?getAllocStart():('allocStart' in existingLevers?existingLevers.allocStart:DEFAULT_ALLOC_START),break30:STATE.break30,break15:STATE.break15};dayData.levers=levers;google.script.run.withSuccessHandler(()=>{}).withFailureHandler(()=>{}).saveDayLevers(STATE.currentWeek,STATE.currentDay,levers);}
@@ -767,6 +773,7 @@ function buildActiveOverride(){
 function ft(h){const tm=Math.round(h*60),hh=Math.floor(tm/60)%24,mm=tm%60,ap=hh>=12?'PM':'AM';return`${hh%12||12}:${String(mm).padStart(2,'0')} ${ap}`}
 function ftPlus(h){return h>=24?ft(h)+' +1':ft(h)}
 function ft24(h){const norm=h>=24?h-24:h;const tm=Math.round(norm*60),hh=Math.floor(tm/60)%24,mm=tm%60;return`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`}
+function fmtApptDisplay(s){if(!s)return s;const h=parseTimeStr(s);return h!==null?ft24(h):s;}
 function getInitialsFromEmail(email){if(!email)return'?';const local=email.split('@')[0];const dotMatch=local.match(/^([a-z]).*?\.([a-z])/i);if(dotMatch)return(dotMatch[1]+dotMatch[2]).toUpperCase();const camelMatch=local.match(/^([a-z])([a-z]*)([A-Z])/);if(camelMatch)return(camelMatch[1]+camelMatch[3]).toUpperCase();return local.slice(0,2).toUpperCase();}
 function parseCptStr(s){if(!s)return null;s=s.trim();const plus1=s.includes('+1');s=s.replace('+1','').trim();const ampm=s.match(/(AM|PM)/i);const parts=s.replace(/(AM|PM)/gi,'').trim().split(':');let h=parseInt(parts[0]),m=parseInt(parts[1]||0);if(ampm){const ap=ampm[0].toUpperCase();if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;}if(plus1)h+=24;return h+m/60;}
 function getLHScheduleForWeek(week){if(!STATE.lhScheduleUpdates||!STATE.lhScheduleUpdates.length)return STATE.lhSchedule;const applicable=STATE.lhScheduleUpdates.filter(u=>u.startWeek<=week).sort((a,b)=>b.startWeek.localeCompare(a.startWeek));return applicable.length?applicable[0].schedule:STATE.lhSchedule;}
@@ -1027,7 +1034,7 @@ function renderLogistics(){
       html+=`<td style="text-align:center;padding:8px 10px">${r.carrier||'—'}${manualTag}</td>`;
       html+=`<td style="text-align:center;padding:8px 10px">${r.loadNumber||'—'}</td>`;
     }
-    html+=`<td style="text-align:center;padding:8px 10px;color:var(--muted)">${r.scheduledAppt||'—'}</td>`;
+    html+=`<td style="text-align:center;padding:8px 10px;color:var(--muted)">${fmtApptDisplay(r.scheduledAppt)||'—'}</td>`;
     html+=`<td style="text-align:center;padding:8px 10px;font-weight:500;color:var(--accent)">${arrivalHtml}${diffTag}</td>`;
     html+=`<td style="text-align:center;padding:8px 10px">${statusBadge}</td>`;
     if(showCheckboxes){
@@ -1301,6 +1308,7 @@ function addAdminUser(){const email=document.getElementById('newAdminEmail').val
 function removeAdminUser(email){if(!confirm(`Remove ${email}?`))return;google.script.run.withSuccessHandler(()=>{loadAdminUsers();}).withFailureHandler(()=>{}).removeAdminUser(email);}
 function changePin(){const current=document.getElementById('pinCurrent').value,newPin=document.getElementById('pinNew').value,conf=document.getElementById('pinConfirm').value,status=document.getElementById('pinChangeStatus');if(!current||!newPin||!conf){status.innerHTML='<div class="status-bar status-err">All fields required.</div>';return;}if(newPin!==conf){status.innerHTML='<div class="status-bar status-err">New PINs don\'t match.</div>';return;}if(newPin.length<4){status.innerHTML='<div class="status-bar status-err">PIN must be at least 4 characters.</div>';return;}google.script.run.withSuccessHandler(()=>{ADMIN_PIN=newPin;['pinCurrent','pinNew','pinConfirm'].forEach(id=>document.getElementById(id).value='');status.innerHTML='<div class="status-bar status-ok">✓ PIN updated</div>';setTimeout(()=>status.innerHTML='',3000);}).withFailureHandler(err=>{status.innerHTML=`<div class="status-bar status-err">${err.message}</div>`;}).setPin(current,newPin);}
 const SHORT_TO_DAY={};Object.entries(DAY_SHORT).forEach(([full,short])=>{SHORT_TO_DAY[short.toLowerCase()]=full;});
+function chicagoSplitForDay(day){const cs=STATE.chicagoSplit||{ilPm:0.60,ilAm:0.40};if(day==='Friday')return{ilPm:1,ilAm:0};if(day==='Saturday')return{ilPm:0,ilAm:1};return cs;}
 function parseDemandPaste(){
   const raw=document.getElementById('demandPaste').value.trim(),preview=document.getElementById('demandPreview');
   if(!raw){preview.innerHTML='<div class="status-bar status-err">Nothing to parse.</div>';return;}
@@ -1340,7 +1348,7 @@ function parseDemandPaste(){
   Object.entries(marketData).forEach(([market,days])=>{
     const lh=MARKET_LH_MAP[market];if(!lh)return;
     Object.entries(days).forEach(([day,{total,ll}])=>{
-      if(market==='Chicago'){const split=STATE.chicagoSplit||{ilPm:0.60,ilAm:0.40};const pmVol=Math.round(total*split.ilPm),amVol=total-pmVol;lhTotals[day]['IL PM']=(lhTotals[day]['IL PM']||0)+pmVol;lhTotals[day]['IL AM']=(lhTotals[day]['IL AM']||0)+amVol;if(!marketVol[day]['IL PM'])marketVol[day]['IL PM']={};if(!marketVol[day]['IL AM'])marketVol[day]['IL AM']={};marketVol[day]['IL PM']['Chicago']=pmVol;marketVol[day]['IL AM']['Chicago']=amVol;if(levelLoadVol){const pmLL=Math.round(ll*split.ilPm),amLL=ll-pmLL;levelLoadVol[day]['IL PM']=(levelLoadVol[day]['IL PM']||0)+pmLL;levelLoadVol[day]['IL AM']=(levelLoadVol[day]['IL AM']||0)+amLL;}}
+      if(market==='Chicago'){const split=chicagoSplitForDay(day);const pmVol=Math.round(total*split.ilPm),amVol=total-pmVol;lhTotals[day]['IL PM']=(lhTotals[day]['IL PM']||0)+pmVol;lhTotals[day]['IL AM']=(lhTotals[day]['IL AM']||0)+amVol;if(!marketVol[day]['IL PM'])marketVol[day]['IL PM']={};if(!marketVol[day]['IL AM'])marketVol[day]['IL AM']={};marketVol[day]['IL PM']['Chicago']=pmVol;marketVol[day]['IL AM']['Chicago']=amVol;if(levelLoadVol){const pmLL=Math.round(ll*split.ilPm),amLL=ll-pmLL;levelLoadVol[day]['IL PM']=(levelLoadVol[day]['IL PM']||0)+pmLL;levelLoadVol[day]['IL AM']=(levelLoadVol[day]['IL AM']||0)+amLL;}}
       else{lhTotals[day][lh]=(lhTotals[day][lh]||0)+total;if(!marketVol[day][lh])marketVol[day][lh]={};marketVol[day][lh][market]=(marketVol[day][lh][market]||0)+total;if(levelLoadVol)levelLoadVol[day][lh]=(levelLoadVol[day][lh]||0)+ll;}
     });
   });

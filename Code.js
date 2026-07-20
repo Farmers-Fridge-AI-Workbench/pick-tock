@@ -49,6 +49,15 @@ const MARKET_LH_MAP = {
 
 const DAYS_ORDER = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
+// Fridays run no IL AM tickets (drivers off) — all Chicago volume goes IL PM.
+// Saturdays run no IL PM tickets — all Chicago volume goes IL AM.
+// Any other day uses the configured (admin-editable) split.
+function getChicagoSplitForDay(day, configuredSplit) {
+  if (day === 'Friday')   return { ilPm: 1, ilAm: 0 };
+  if (day === 'Saturday') return { ilPm: 0, ilAm: 1 };
+  return configuredSplit;
+}
+
 // ─── SERVE UI ─────────────────────────────────────────────────────────────────
 
 function doGet(e) {
@@ -275,7 +284,7 @@ function fetchForecastWeek(weekLabel) {
   weekCols.forEach(wc => { lhTotals[wc.day] = {}; marketVol[wc.day] = {}; dates[wc.day] = wc.date; });
 
   const storedState = getState();
-  const chicagoSplit = storedState?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
+  const configuredChicagoSplit = storedState?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
 
   const seenMarkets = new Set();
   for (let r = marketStartRow; r < allData.length; r++) {
@@ -291,6 +300,7 @@ function fetchForecastWeek(weekLabel) {
       if (vol <= 0) return;
 
       if (market === 'Chicago') {
+        const chicagoSplit = getChicagoSplitForDay(wc.day, configuredChicagoSplit);
         const pmVol = Math.round(vol * chicagoSplit.ilPm);
         const amVol = vol - pmVol;
         lhTotals[wc.day]['IL PM'] = (lhTotals[wc.day]['IL PM'] || 0) + pmVol;
@@ -327,7 +337,7 @@ function fetchAndPublishAllForecastWeeks() {
   let state = getState() || { demands: {}, lhSchedule: null, thruputs: null, cptOverrides: {} };
   if (!state.demands) state.demands = {};
 
-  const chicagoSplit = state.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
+  const configuredChicagoSplit = state.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
 
   const ss = SpreadsheetApp.openById(FORECAST_SHEET_ID);
   const sheet = ss.getSheetByName(FORECAST_TAB);
@@ -373,6 +383,7 @@ function fetchAndPublishAllForecastWeeks() {
         const vol = Math.round(parseFloat(raw) || 0);
         if (vol <= 0) return;
         if (market === 'Chicago') {
+          const chicagoSplit = getChicagoSplitForDay(wc.day, configuredChicagoSplit);
           const pmVol = Math.round(vol * chicagoSplit.ilPm);
           const amVol = vol - pmVol;
           lhTotals[wc.day]['IL PM'] = (lhTotals[wc.day]['IL PM'] || 0) + pmVol;
@@ -431,7 +442,7 @@ function deriveMarketVolFromRawPaste(rawPaste) {
   if (!rawPaste) return null;
   try {
     const state = getState();
-    const chicagoSplit = state?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
+    const configuredChicagoSplit = state?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
     const DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
     const SHORT_TO_DAY = {};
     Object.entries(DAY_SHORT).forEach(([full, short]) => { SHORT_TO_DAY[short.toLowerCase()] = full; });
@@ -471,6 +482,7 @@ function deriveMarketVolFromRawPaste(rawPaste) {
         if (isNaN(v) || v <= 0) return;
         if (!marketVol[day]) marketVol[day] = {};
         if (market === 'Chicago') {
+          const chicagoSplit = getChicagoSplitForDay(day, configuredChicagoSplit);
           const pmVol = Math.round(v * chicagoSplit.ilPm);
           const amVol = Math.round(v) - pmVol;
           if (!marketVol[day]['IL PM']) marketVol[day]['IL PM'] = {};
@@ -1274,7 +1286,7 @@ function pullCarrierLoadDataCore() {
 
     let scheduledAppt = '';
     const apptVal = col.shippingAppt !== -1 ? row[col.shippingAppt] : null;
-    if (apptVal instanceof Date) scheduledAppt = Utilities.formatDate(apptVal, tz, 'h:mm a');
+    if (apptVal instanceof Date) scheduledAppt = Utilities.formatDate(apptVal, tz, 'HH:mm');
 
     if (!updates[loc.week]) updates[loc.week] = {};
     if (!updates[loc.week][loc.day]) updates[loc.week][loc.day] = {};
