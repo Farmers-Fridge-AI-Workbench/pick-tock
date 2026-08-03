@@ -25,6 +25,9 @@ const MARKET_LH_MAP = {
   'Austin':         'S (DAL, HOU, AUS, SAT)',
   'Boston':         'NE',
   'Chicago':        'IL PM',
+  'Chicago HMS':    'HMS Chicago',
+  'IL AM':          'IL AM',
+  'IL PM':          'IL PM',
   'Cincinnati':     'INDY (IND, OH)',
   'Cleveland':      'MI',
   'Columbus':       'INDY (IND, OH)',
@@ -48,14 +51,43 @@ const MARKET_LH_MAP = {
 };
 
 const DAYS_ORDER = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const DAY_SHORT  = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
 
-// Fridays run no IL AM tickets (drivers off) — all Chicago volume goes IL PM.
-// Saturdays run no IL PM tickets — all Chicago volume goes IL AM.
-// Any other day uses the configured (admin-editable) split.
-function getChicagoSplitForDay(day, configuredSplit) {
-  if (day === 'Friday')   return { ilPm: 1, ilAm: 0 };
-  if (day === 'Saturday') return { ilPm: 0, ilAm: 1 };
-  return configuredSplit;
+// Resolves the LH schedule that applies to a given week, honoring scheduled updates
+// (mirrors client-side getLHScheduleForWeek in Index.html).
+function getLHScheduleForWeek_(state, weekLabel) {
+  const base = (state && state.lhSchedule) || [];
+  const updates = (state && state.lhScheduleUpdates) || [];
+  if (!updates.length) return base;
+  const applicable = updates.filter(u => u.startWeek <= weekLabel).sort((a, b) => b.startWeek.localeCompare(a.startWeek));
+  return applicable.length ? applicable[0].schedule : base;
+}
+
+// HMS is a client-specific Chicago-bucket linehaul that only runs on its scheduled days
+// (per the HMS row's day checkboxes in the LH Schedule) — read dynamically, not hardcoded.
+function isHmsActiveForDay(lhSchedule, day) {
+  const entry = (lhSchedule || []).find(l => l.lh === 'HMS Chicago');
+  if (!entry || !entry.days) return false;
+  return !!entry.days[DAY_SHORT[day]];
+}
+
+// Fridays run no IL AM tickets (drivers off) — all non-HMS Chicago volume goes IL PM.
+// Saturdays run no IL PM tickets — all non-HMS Chicago volume goes IL AM.
+// HMS gets its configured flat % of Chicago volume only on days it's scheduled to run;
+// on days it's not running, the full Chicago volume splits AM/PM only (HMS ignored).
+// Any other day uses the configured (admin-editable) 3-way split.
+function getChicagoSplitForDay(day, configuredSplit, hmsActive) {
+  const cs = configuredSplit || {};
+  const hms = hmsActive ? (cs.hms || 0) : 0;
+  if (day === 'Friday')   return { ilPm: 1 - hms, ilAm: 0, hms: hms };
+  if (day === 'Saturday') return { ilPm: 0, ilAm: 1 - hms, hms: hms };
+  if (!hmsActive) {
+    const sum = (cs.ilPm || 0) + (cs.ilAm || 0);
+    return sum > 0
+      ? { ilPm: cs.ilPm / sum, ilAm: cs.ilAm / sum, hms: 0 }
+      : { ilPm: 0.60, ilAm: 0.40, hms: 0 };
+  }
+  return { ilPm: cs.ilPm || 0, ilAm: cs.ilAm || 0, hms: hms };
 }
 
 // ─── SERVE UI ─────────────────────────────────────────────────────────────────
@@ -284,7 +316,8 @@ function fetchForecastWeek(weekLabel) {
   weekCols.forEach(wc => { lhTotals[wc.day] = {}; marketVol[wc.day] = {}; dates[wc.day] = wc.date; });
 
   const storedState = getState();
-  const configuredChicagoSplit = storedState?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
+  const configuredChicagoSplit = storedState?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40, hms: 0 };
+  const weekSched = getLHScheduleForWeek_(storedState, weekLabel);
 
   const seenMarkets = new Set();
   for (let r = marketStartRow; r < allData.length; r++) {
@@ -300,15 +333,22 @@ function fetchForecastWeek(weekLabel) {
       if (vol <= 0) return;
 
       if (market === 'Chicago') {
-        const chicagoSplit = getChicagoSplitForDay(wc.day, configuredChicagoSplit);
+        const hmsActive = isHmsActiveForDay(weekSched, wc.day);
+        const chicagoSplit = getChicagoSplitForDay(wc.day, configuredChicagoSplit, hmsActive);
+        const hmsVol = Math.round(vol * chicagoSplit.hms);
         const pmVol = Math.round(vol * chicagoSplit.ilPm);
-        const amVol = vol - pmVol;
+        const amVol = vol - pmVol - hmsVol;
         lhTotals[wc.day]['IL PM'] = (lhTotals[wc.day]['IL PM'] || 0) + pmVol;
         lhTotals[wc.day]['IL AM'] = (lhTotals[wc.day]['IL AM'] || 0) + amVol;
         if (!marketVol[wc.day]['IL PM']) marketVol[wc.day]['IL PM'] = {};
         if (!marketVol[wc.day]['IL AM']) marketVol[wc.day]['IL AM'] = {};
         marketVol[wc.day]['IL PM']['Chicago'] = pmVol;
         marketVol[wc.day]['IL AM']['Chicago'] = amVol;
+        if (hmsVol > 0) {
+          lhTotals[wc.day]['HMS'] = (lhTotals[wc.day]['HMS'] || 0) + hmsVol;
+          if (!marketVol[wc.day]['HMS']) marketVol[wc.day]['HMS'] = {};
+          marketVol[wc.day]['HMS']['Chicago'] = hmsVol;
+        }
       } else {
         lhTotals[wc.day][lh] = (lhTotals[wc.day][lh] || 0) + vol;
         if (!marketVol[wc.day][lh]) marketVol[wc.day][lh] = {};
@@ -337,7 +377,7 @@ function fetchAndPublishAllForecastWeeks() {
   let state = getState() || { demands: {}, lhSchedule: null, thruputs: null, cptOverrides: {} };
   if (!state.demands) state.demands = {};
 
-  const configuredChicagoSplit = state.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
+  const configuredChicagoSplit = state.chicagoSplit || { ilPm: 0.60, ilAm: 0.40, hms: 0 };
 
   const ss = SpreadsheetApp.openById(FORECAST_SHEET_ID);
   const sheet = ss.getSheetByName(FORECAST_TAB);
@@ -370,6 +410,7 @@ function fetchAndPublishAllForecastWeeks() {
     weekCols.sort((a,b) => DAYS_ORDER.indexOf(a.day) - DAYS_ORDER.indexOf(b.day));
     weekCols.forEach(wc => { lhTotals[wc.day] = {}; dates[wc.day] = wc.date; marketVol[wc.day] = {}; });
 
+    const weekSched = getLHScheduleForWeek_(state, weekLabel);
     const seenMarkets = new Set();
     for (let r = marketStartRow; r < allData.length; r++) {
       const market = String(allData[r][2]).trim();
@@ -383,15 +424,22 @@ function fetchAndPublishAllForecastWeeks() {
         const vol = Math.round(parseFloat(raw) || 0);
         if (vol <= 0) return;
         if (market === 'Chicago') {
-          const chicagoSplit = getChicagoSplitForDay(wc.day, configuredChicagoSplit);
+          const hmsActive = isHmsActiveForDay(weekSched, wc.day);
+          const chicagoSplit = getChicagoSplitForDay(wc.day, configuredChicagoSplit, hmsActive);
+          const hmsVol = Math.round(vol * chicagoSplit.hms);
           const pmVol = Math.round(vol * chicagoSplit.ilPm);
-          const amVol = vol - pmVol;
+          const amVol = vol - pmVol - hmsVol;
           lhTotals[wc.day]['IL PM'] = (lhTotals[wc.day]['IL PM'] || 0) + pmVol;
           lhTotals[wc.day]['IL AM'] = (lhTotals[wc.day]['IL AM'] || 0) + amVol;
           if (!marketVol[wc.day]['IL PM']) marketVol[wc.day]['IL PM'] = {};
           if (!marketVol[wc.day]['IL AM']) marketVol[wc.day]['IL AM'] = {};
           marketVol[wc.day]['IL PM']['Chicago'] = pmVol;
           marketVol[wc.day]['IL AM']['Chicago'] = amVol;
+          if (hmsVol > 0) {
+            lhTotals[wc.day]['HMS'] = (lhTotals[wc.day]['HMS'] || 0) + hmsVol;
+            if (!marketVol[wc.day]['HMS']) marketVol[wc.day]['HMS'] = {};
+            marketVol[wc.day]['HMS']['Chicago'] = hmsVol;
+          }
         } else {
           lhTotals[wc.day][lh] = (lhTotals[wc.day][lh] || 0) + vol;
           if (!marketVol[wc.day][lh]) marketVol[wc.day][lh] = {};
@@ -438,12 +486,12 @@ function fetchAndPublishAllForecastWeeks() {
 // ─── DERIVE MARKET BREAKDOWN SERVER-SIDE FROM RAW PASTE ───────────────────────
 // Mirrors the client's parseDemandPaste market logic, so marketVol capture
 // works even if a browser is still running a stale cached copy of Index.html.
-function deriveMarketVolFromRawPaste(rawPaste) {
+function deriveMarketVolFromRawPaste(rawPaste, weekLabel) {
   if (!rawPaste) return null;
   try {
     const state = getState();
-    const configuredChicagoSplit = state?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40 };
-    const DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
+    const configuredChicagoSplit = state?.chicagoSplit || { ilPm: 0.60, ilAm: 0.40, hms: 0 };
+    const weekSched = getLHScheduleForWeek_(state, weekLabel);
     const SHORT_TO_DAY = {};
     Object.entries(DAY_SHORT).forEach(([full, short]) => { SHORT_TO_DAY[short.toLowerCase()] = full; });
 
@@ -482,13 +530,19 @@ function deriveMarketVolFromRawPaste(rawPaste) {
         if (isNaN(v) || v <= 0) return;
         if (!marketVol[day]) marketVol[day] = {};
         if (market === 'Chicago') {
-          const chicagoSplit = getChicagoSplitForDay(day, configuredChicagoSplit);
+          const hmsActive = isHmsActiveForDay(weekSched, day);
+          const chicagoSplit = getChicagoSplitForDay(day, configuredChicagoSplit, hmsActive);
+          const hmsVol = Math.round(v * chicagoSplit.hms);
           const pmVol = Math.round(v * chicagoSplit.ilPm);
-          const amVol = Math.round(v) - pmVol;
+          const amVol = Math.round(v) - pmVol - hmsVol;
           if (!marketVol[day]['IL PM']) marketVol[day]['IL PM'] = {};
           if (!marketVol[day]['IL AM']) marketVol[day]['IL AM'] = {};
           marketVol[day]['IL PM']['Chicago'] = pmVol;
           marketVol[day]['IL AM']['Chicago'] = amVol;
+          if (hmsVol > 0) {
+            if (!marketVol[day]['HMS']) marketVol[day]['HMS'] = {};
+            marketVol[day]['HMS']['Chicago'] = hmsVol;
+          }
         } else {
           const lh = MARKET_LH_MAP[market];
           if (!marketVol[day][lh]) marketVol[day][lh] = {};
@@ -511,7 +565,7 @@ function publishWeek(weekLabel, lhTotals, dates, mode, rawPaste, levelLoadVol, m
 
   // Prefer server-derived market breakdown from the raw paste (works regardless of
   // client JS version); fall back to whatever the client computed and sent.
-  const derivedMarketVol = (mode === 'actual') ? deriveMarketVolFromRawPaste(rawPaste) : null;
+  const derivedMarketVol = (mode === 'actual') ? deriveMarketVolFromRawPaste(rawPaste, weekLabel) : null;
   const effectiveMarketVol = derivedMarketVol || marketVolByDay;
 
   let state = getState() || { demands: {}, lhSchedule: null, thruputs: null, cptOverrides: {} };

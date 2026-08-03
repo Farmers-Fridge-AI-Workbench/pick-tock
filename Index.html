@@ -419,6 +419,9 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
         <div class="panel-title">
           <span>recommended truck arrivals — 2wk back / 8wk ahead</span>
           <div style="display:flex;gap:6px;align-items:center">
+            <input type="date" id="logisticsDateFrom" onchange="onLogisticsDateFilterChange()" style="font-family:var(--mono);font-size:11px;padding:3px 6px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:4px" title="From date">
+            <input type="date" id="logisticsDateTo" onchange="onLogisticsDateFilterChange()" style="font-family:var(--mono);font-size:11px;padding:3px 6px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:4px" title="To date">
+            <button class="btn btn-ghost btn-sm" onclick="clearLogisticsDateFilter()" title="Clear date filter">✕ dates</button>
             <select class="week-sel" id="logisticsCarrierFilter" onchange="onLogisticsCarrierFilterChange(this.value)" style="font-size:12px;padding:3px 8px">
               <option value="">all carriers</option>
             </select>
@@ -428,6 +431,17 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
         <div id="carrierPullStatus" style="margin-bottom:8px"></div>
         <div id="logBulkEmailBar" style="display:none;margin-bottom:8px;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px"></div>
         <div id="logisticsContent"><div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded yet.</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">
+          <span>week view — recommended arrival times</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn-ghost btn-sm" onclick="logisticsWeekNav(-1)">‹ prev</button>
+            <span id="logisticsWeekLabel" style="font-family:var(--mono);font-size:12px;color:var(--muted);min-width:80px;text-align:center"></span>
+            <button class="btn btn-ghost btn-sm" onclick="logisticsWeekNav(1)">next ›</button>
+          </div>
+        </div>
+        <div id="logisticsWeekView"><div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded yet.</div></div>
       </div>
     </div>
     <div class="tab-view" id="tab-contacts">
@@ -517,7 +531,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
 
           <div class="panel"><div class="panel-title"><span>labor config</span><button class="btn btn-teal btn-sm" onclick="saveLaborConfig()">save</button></div><table class="thruput-table"><thead><tr><th>Position</th><th style="text-align:right">Count</th></tr></thead><tbody><tr><td style="font-family:var(--mono)">Emp/Line</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-empline" value="12" min="1" max="30" step="1" style="width:60px"></td></tr><tr><td style="font-family:var(--mono)">Replenisher</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-replen" value="2" min="0" max="10" step="1" style="width:60px"></td></tr><tr><td style="font-family:var(--mono)">Leads</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-leads" value="2" min="0" max="10" step="1" style="width:60px"></td></tr><tr><td style="font-family:var(--mono)">Box Builders</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-boxbuild" value="2" min="0" max="10" step="1" style="width:60px"></td></tr><tr style="border-top:.5px solid var(--border2)"><td style="font-family:var(--mono)">Avg Hourly Rate</td><td style="text-align:right"><input type="number" class="thruput-input" id="lc-rate" value="24.39" min="0" step="0.25" style="width:70px"></td></tr></tbody></table></div>
           <div class="panel"><div class="panel-title">change pin</div><div class="form-row"><label class="form-label">Current PIN</label><input type="password" class="form-input" id="pinCurrent" placeholder="••••" maxlength="8" style="width:160px"></div><div class="form-row"><label class="form-label">New PIN</label><input type="password" class="form-input" id="pinNew" placeholder="••••" maxlength="8" style="width:160px"></div><div class="form-row"><label class="form-label">Confirm new PIN</label><input type="password" class="form-input" id="pinConfirm" placeholder="••••" maxlength="8" style="width:160px"></div><button class="btn btn-teal btn-sm" onclick="changePin()">Update PIN</button><div id="pinChangeStatus" style="margin-top:8px"></div></div>
-          <div class="panel"><div class="panel-title"><span>chicago volume split</span><button class="btn btn-teal btn-sm" onclick="saveChicagoSplit()">save</button></div><table class="thruput-table"><thead><tr><th>Linehaul</th><th style="text-align:right">% of Chicago vol</th></tr></thead><tbody><tr><td style="font-family:var(--mono)">IL PM</td><td style="text-align:right"><input type="number" class="thruput-input" id="cs-ilpm" value="60" min="0" max="100" step="1" style="width:60px"> %</td></tr><tr><td style="font-family:var(--mono)">IL AM</td><td style="text-align:right"><input type="number" class="thruput-input" id="cs-ilam" value="40" min="0" max="100" step="1" style="width:60px"> %</td></tr></tbody></table><div id="chicagoSplitStatus" style="margin-top:6px"></div></div>
+          <div class="panel"><div class="panel-title"><span>chicago volume split</span><button class="btn btn-teal btn-sm" onclick="saveChicagoSplit()">save</button></div><table class="thruput-table"><thead><tr><th>Linehaul</th><th style="text-align:right">% of Chicago vol</th></tr></thead><tbody><tr><td style="font-family:var(--mono)">IL PM</td><td style="text-align:right"><input type="number" class="thruput-input" id="cs-ilpm" value="60" min="0" max="100" step="1" style="width:60px"> %</td></tr><tr><td style="font-family:var(--mono)">IL AM</td><td style="text-align:right"><input type="number" class="thruput-input" id="cs-ilam" value="40" min="0" max="100" step="1" style="width:60px"> %</td></tr><tr><td style="font-family:var(--mono)">HMS</td><td style="text-align:right"><input type="number" class="thruput-input" id="cs-hms" value="0" min="0" max="100" step="1" style="width:60px"> %</td></tr></tbody></table><div id="chicagoSplitStatus" style="margin-top:6px"></div></div>
           <div class="panel"><div class="panel-title">admin users</div><div id="adminUsersList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div><div style="display:flex;gap:8px;align-items:center"><input type="text" class="form-input" id="newAdminEmail" placeholder="email@farmersfridge.com" style="flex:1"><button class="btn btn-teal btn-sm" onclick="addAdminUser()">Add</button></div><div id="adminUsersStatus" style="margin-top:8px"></div></div>
           <div class="panel"><div class="panel-title"><span>approval access</span><button class="btn btn-teal btn-sm" onclick="saveApproverUsers()">save</button></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:12px">Emails listed here can approve their department's row without admin access. Planning approvers can approve all three.</div><div id="approverPanelBody" style="display:flex;flex-direction:column;gap:14px"></div><div id="approverSaveStatus" style="margin-top:8px"></div></div>
           <div class="panel"><div class="panel-title"><span>carrier emails</span><button class="btn btn-ghost btn-sm" onclick="refreshCarrierEmails()" id="carrierEmailsRefreshBtn">↻ pull from Carrier Contacts</button></div><div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:12px">Auto-pulled daily from the Linehaul Schedule sheet's Carrier Contacts tab (Carrier / Broker + Primary Email columns). Manually-added entries below are never overwritten by the pull. Carrier name must match what's shown on the Logistics tab.</div><div id="carrierEmailsBody" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div><div style="display:flex;gap:6px;align-items:center"><input type="text" class="form-input" id="newCarrierName" placeholder="Carrier name (e.g. Marten)" style="flex:1;font-size:11px;padding:5px 8px"><input type="text" class="form-input" id="newCarrierEmail" placeholder="dispatch@carrier.com" style="flex:1;font-size:11px;padding:5px 8px"><button class="btn btn-teal btn-sm" onclick="addCarrierEmail()">add</button></div><div id="carrierEmailsStatus" style="margin-top:8px"></div></div>
@@ -596,8 +610,8 @@ const DEFAULT_LINES={Monday:2,Tuesday:2,Wednesday:2,Thursday:2,Friday:2,Saturday
 let MARKET_LH_MAP={}; // single source of truth lives in Code.js — fetched via getMarketLhMap() at boot, see window.onload
 const DAYS_ORDER=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const DAY_SHORT={Monday:'Mon',Tuesday:'Tue',Wednesday:'Wed',Thursday:'Thu',Friday:'Fri',Saturday:'Sat',Sunday:'Sun'};
-const LH_COLORS={'IL PM':'#4ade80','IL AM':'#4f8ef7','NE':'#f97316','S (DAL, HOU, AUS, SAT)':'#f59e0b','W (LA, SD)':'#a78bfa','WI (MKE, MAD)':'#06b6d4','MI':'#ef4444','MN':'#ec4899','INDY (IND, OH)':'#2dd4bf','STL':'#fb923c','TN':'#84cc16'};
-let STATE={lhSchedule:JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE)),thruputs:{...DEFAULT_THRUPUTS},lines:{...DEFAULT_LINES},lineThreshold:[{vol:47000,lines:3}],laborConfig:{empPerLine:12,replenisher:2,leads:2,boxBuilders:2,hourlyRate:24.39},chicagoSplit:{ilPm:0.60,ilAm:0.40},demands:{},cptOverrides:{},lhScheduleUpdates:[],currentWeek:null,currentDay:null,currentLines:2,adminUnlocked:false,approverDepts:[],thruputUpdatedAt:null,break30:{enabled:true,time:null},break15:{enabled:true,time:null},logisticsWeek:null,logisticsCarrierFilter:'',carrierEmails:{},_currentUserEmail:''};
+const LH_COLORS={'IL PM':'#4ade80','IL AM':'#4f8ef7','HMS Chicago':'#facc15','NE':'#f97316','S (DAL, HOU, AUS, SAT)':'#f59e0b','W (LA, SD)':'#a78bfa','WI (MKE, MAD)':'#06b6d4','MI':'#ef4444','MN':'#ec4899','INDY (IND, OH)':'#2dd4bf','STL':'#fb923c','TN':'#84cc16'};
+let STATE={lhSchedule:JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE)),thruputs:{...DEFAULT_THRUPUTS},lines:{...DEFAULT_LINES},lineThreshold:[{vol:47000,lines:3}],laborConfig:{empPerLine:12,replenisher:2,leads:2,boxBuilders:2,hourlyRate:24.39},chicagoSplit:{ilPm:0.60,ilAm:0.40,hms:0},demands:{},cptOverrides:{},lhScheduleUpdates:[],currentWeek:null,currentDay:null,currentLines:2,adminUnlocked:false,approverDepts:[],thruputUpdatedAt:null,break30:{enabled:true,time:null},break15:{enabled:true,time:null},logisticsWeek:null,logisticsCarrierFilter:'',logisticsDateFrom:'',logisticsDateTo:'',carrierEmails:{},_currentUserEmail:''};
 function parseTimeStr(s){if(!s)return null;s=s.trim();const m=s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);if(m){let h=parseInt(m[1]),min=parseInt(m[2]);const ap=m[3].toUpperCase();if(h<1||h>12||min<0||min>59)return null;if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;return h+min/60;}const m24=s.match(/^(\d{1,2}):(\d{2})$/);if(m24){let h=parseInt(m24[1]),min=parseInt(m24[2]);if(h<0||h>23||min<0||min>59)return null;return h+min/60;}return null;}
 function toTimeStr(h){const norm=h>=24?h-24:h;const tm=Math.round(norm*60),hh=Math.floor(tm/60)%24,mm=tm%60,ap=hh>=12?'PM':'AM';return`${hh%12||12}:${String(mm).padStart(2,'0')} ${ap}`;}
 // One-time migration: cptOverrides used to be the "real" CPT (it almost always won
@@ -792,7 +806,7 @@ function pickBreakDur(segs,existingEnd){for(let i=0;i<segs.length-1;i++){const t
 function findGap(segs,minDur,excludeEnd){for(let i=0;i<segs.length-1;i++){const seg=segs[i],next=segs[i+1];if(seg.isBreak||next.isBreak)continue;const gs=seg.te,ge=next.ts;if(gs>=ilLawCeil)continue;if(excludeEnd!==undefined&&excludeEnd!==null&&Math.abs(gs-excludeEnd)<0.6)continue;if(ge-gs>=minDur-0.01)return{idx:i,t:gs,dur:Math.min(ge-gs,0.5)};}return null;}
 function insertBreakAtGap(segs,gap,forceDur){const d=forceDur||gap.dur;const ns=[...segs];ns.splice(gap.idx+1,0,{lh:'__break__',ts:gap.t,te:gap.t+d,col:'rgba(80,85,100,0.7)',isBreak:true,dur:d});return ns;}
 function scheduleBreak(segs,dur,existingEnd){const bkDur=dur||pickBreakDur(segs,existingEnd);const gap=findGap(segs,bkDur,existingEnd);if(gap)return insertBreakAtGap(segs,gap,bkDur);return insertBreak(segs,bkDur,existingEnd);}
-function insertBreakAtTime(segs,targetH,dur){const result=[];let inserted=false;for(let i=0;i<segs.length;i++){const s=segs[i];if(inserted){result.push({...s,ts:s.isBreak?s.ts:s.ts+dur,te:s.isBreak?s.te:s.te+dur});continue;}if(!s.isBreak&&s.ts<targetH&&s.te>targetH){result.push({...s,te:targetH});result.push({lh:'__break__',ts:targetH,te:targetH+dur,col:'rgba(80,85,100,0.7)',isBreak:true,dur});result.push({...s,ts:targetH+dur,te:s.te+dur});inserted=true;}else if(!s.isBreak&&Math.abs(s.te-targetH)<0.01){result.push({...s});result.push({lh:'__break__',ts:targetH,te:targetH+dur,col:'rgba(80,85,100,0.7)',isBreak:true,dur});inserted=true;}else{result.push({...s});}}if(!inserted)result.push({lh:'__break__',ts:targetH,te:targetH+dur,col:'rgba(80,85,100,0.7)',isBreak:true,dur});return result;}
+function insertBreakAtTime(segs,targetH,dur){const breakEnd=targetH+dur;for(let i=0;i<segs.length;i++){const s=segs[i];if(s.isBreak)continue;if(s.ts<targetH&&s.te>targetH){const result=segs.slice(0,i);result.push({...s,te:targetH});result.push({lh:'__break__',ts:targetH,te:breakEnd,col:'rgba(80,85,100,0.7)',isBreak:true,dur});result.push({...s,ts:breakEnd,te:s.te+dur});for(let j=i+1;j<segs.length;j++){const n=segs[j];result.push({...n,ts:n.isBreak?n.ts:n.ts+dur,te:n.isBreak?n.te:n.te+dur});}return result;}}let insertIdx=segs.length;for(let i=0;i<segs.length;i++){if(!segs[i].isBreak&&segs[i].ts>=targetH){insertIdx=i;break;}}const result=segs.slice(0,insertIdx);result.push({lh:'__break__',ts:targetH,te:breakEnd,col:'rgba(80,85,100,0.7)',isBreak:true,dur});if(insertIdx<segs.length){const n=segs[insertIdx];const overlap=Math.max(0,breakEnd-n.ts);for(let j=insertIdx;j<segs.length;j++){const seg=segs[j];result.push(overlap>0.001?{...seg,ts:seg.isBreak?seg.ts:seg.ts+overlap,te:seg.isBreak?seg.te:seg.te+overlap}:{...seg});}}return result;}
 let finalSegs=raw.lineSchedule;
 const do30=STATE.break30.enabled;
 const do15=STATE.break15.enabled;
@@ -987,21 +1001,27 @@ function sendCarrierEmailFromModal(){
     setTimeout(closeEmailCarrierModal,1200);
   }).withFailureHandler(err=>{status.innerHTML=`<span style="color:var(--red)">Error: ${err.message}</span>`;}).emailCarrier(to,subject,body);
 }
+function onLogisticsDateFilterChange(){STATE.logisticsDateFrom=document.getElementById('logisticsDateFrom').value||'';STATE.logisticsDateTo=document.getElementById('logisticsDateTo').value||'';renderLogistics();}
+function clearLogisticsDateFilter(){STATE.logisticsDateFrom='';STATE.logisticsDateTo='';document.getElementById('logisticsDateFrom').value='';document.getElementById('logisticsDateTo').value='';renderLogistics();}
 function renderLogistics(){
   const content=document.getElementById('logisticsContent');
-  if(!Object.keys(STATE.demands).length){content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded yet.</div>';document.getElementById('logBulkEmailBar').style.display='none';return;}
+  if(!Object.keys(STATE.demands).length){content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded yet.</div>';document.getElementById('logBulkEmailBar').style.display='none';renderLogisticsWeekView([]);return;}
   const allRows=buildLogisticsRows();
   const carriers=[...new Set(allRows.map(r=>r.carrier).filter(Boolean))].sort();
   const filterSel=document.getElementById('logisticsCarrierFilter');
   const curFilter=STATE.logisticsCarrierFilter||'';
   filterSel.innerHTML='<option value="">all carriers</option>'+carriers.map(c=>`<option value="${c}"${c===curFilter?' selected':''}>${c}</option>`).join('');
+  document.getElementById('logisticsDateFrom').value=STATE.logisticsDateFrom||'';
+  document.getElementById('logisticsDateTo').value=STATE.logisticsDateTo||'';
   const todayStr=new Date().toISOString().slice(0,10);
   if(curFilter!==_logSelectedCarrier){
     _logSelected=new Set();
     _logSelectedCarrier=curFilter;
   }
-  const rows=curFilter?allRows.filter(r=>r.carrier===curFilter):allRows;
+  const dateFrom=STATE.logisticsDateFrom||'',dateTo=STATE.logisticsDateTo||'';
+  const rows=allRows.filter(r=>(!curFilter||r.carrier===curFilter)&&(!dateFrom||!r.date||r.date>=dateFrom)&&(!dateTo||!r.date||r.date<=dateTo));
   updateBulkEmailBar();
+  renderLogisticsWeekView(allRows,rows);
   if(!rows.length){content.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No linehauls match.</div>';return;}
   const canApproveLogistics=STATE.adminUnlocked||STATE.approverDepts.includes('logistics');
   const showCheckboxes=!!curFilter&&canApproveLogistics;
@@ -1067,6 +1087,65 @@ function renderLogistics(){
     }
     _logScrolledToToday=true;
   }
+}
+function logisticsWeekNav(dir){
+  const allRows=buildLogisticsRows();
+  const weeksPresent=[...new Set(allRows.map(r=>r.week))].sort();
+  if(!weeksPresent.length)return;
+  let idx=weeksPresent.indexOf(STATE.logisticsWeek);
+  if(idx===-1)idx=0;
+  idx=Math.max(0,Math.min(weeksPresent.length-1,idx+dir));
+  STATE.logisticsWeek=weeksPresent[idx];
+  renderLogistics();
+}
+function renderLogisticsWeekView(allRows,filteredRows){
+  allRows=allRows||[];
+  filteredRows=filteredRows||allRows;
+  const container=document.getElementById('logisticsWeekView');
+  const label=document.getElementById('logisticsWeekLabel');
+  const weeksPresent=[...new Set(allRows.map(r=>r.week))].sort();
+  if(!weeksPresent.length){
+    container.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:20px 0">No demand data loaded yet.</div>';
+    label.textContent='';
+    return;
+  }
+  if(!STATE.logisticsWeek||!weeksPresent.includes(STATE.logisticsWeek)){
+    const todayLabel=guessWeekLabel();
+    const past=weeksPresent.filter(w=>w<=todayLabel);
+    STATE.logisticsWeek=past.length?past[past.length-1]:weeksPresent[0];
+  }
+  label.textContent=STATE.logisticsWeek;
+  const weekRows=filteredRows.filter(r=>r.week===STATE.logisticsWeek);
+  const rowsByDay={};
+  DAYS_ORDER.forEach(d=>rowsByDay[d]=[]);
+  weekRows.forEach(r=>rowsByDay[r.day].push(r));
+  const todayStr=new Date().toISOString().slice(0,10);
+  let html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">';
+  DAYS_ORDER.forEach(day=>{
+    const dayRows=rowsByDay[day].slice().sort((a,b)=>{if(!a.arrival)return 1;if(!b.arrival)return -1;return a.arrival.localeCompare(b.arrival);});
+    const dateStr=dayRows[0]?.date||'';
+    const dateDisp=dateStr?new Date(dateStr+'T12:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric'}):'';
+    const isToday=dateStr===todayStr;
+    html+=`<div style="background:var(--surface2);border:1px solid ${isToday?'var(--accent)':'var(--border2)'};border-radius:6px;padding:8px;min-height:80px">`;
+    html+=`<div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${day.slice(0,3)}${dateDisp?' '+dateDisp:''}</div>`;
+    if(!dayRows.length){
+      html+='<div style="font-family:var(--mono);font-size:10px;color:var(--border2)">—</div>';
+    }else{
+      dayRows.forEach(r=>{
+        const statusColor=r.levelLoaded?'#f472b6':r.st==='ok'?'var(--green)':r.st==='tight'?'var(--amber)':'var(--red)';
+        const lhColor=LH_COLORS[r.lh]||'#94a3b8';
+        const arrivalDisp=r.levelLoaded?'lvl load':(r.arrival?'arr '+r.arrival:'—');
+        html+=`<div style="border-left:3px solid ${statusColor};padding:3px 0 3px 6px;margin-bottom:4px;font-family:var(--mono);font-size:11px">`;
+        html+=`<div style="color:${lhColor};font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.lh}</div>`;
+        html+=`<div style="color:var(--muted);font-size:10px">${arrivalDisp}</div>`;
+        html+='</div>';
+      });
+    }
+    html+='</div>';
+  });
+  html+='</div>';
+  html+='<div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:10px;opacity:.7">Time shown is Rec. truck arrival = PP finish − 1 hr, rounded up to nearest 15 min · 24hr format</div>';
+  container.innerHTML=html;
 }
 // ─── LINEHAUL CONTACTS (read-only reference tab) ──────────────────────────────
 function loadContactsTab(forceRefresh){
@@ -1308,9 +1387,10 @@ function addAdminUser(){const email=document.getElementById('newAdminEmail').val
 function removeAdminUser(email){if(!confirm(`Remove ${email}?`))return;google.script.run.withSuccessHandler(()=>{loadAdminUsers();}).withFailureHandler(()=>{}).removeAdminUser(email);}
 function changePin(){const current=document.getElementById('pinCurrent').value,newPin=document.getElementById('pinNew').value,conf=document.getElementById('pinConfirm').value,status=document.getElementById('pinChangeStatus');if(!current||!newPin||!conf){status.innerHTML='<div class="status-bar status-err">All fields required.</div>';return;}if(newPin!==conf){status.innerHTML='<div class="status-bar status-err">New PINs don\'t match.</div>';return;}if(newPin.length<4){status.innerHTML='<div class="status-bar status-err">PIN must be at least 4 characters.</div>';return;}google.script.run.withSuccessHandler(()=>{ADMIN_PIN=newPin;['pinCurrent','pinNew','pinConfirm'].forEach(id=>document.getElementById(id).value='');status.innerHTML='<div class="status-bar status-ok">✓ PIN updated</div>';setTimeout(()=>status.innerHTML='',3000);}).withFailureHandler(err=>{status.innerHTML=`<div class="status-bar status-err">${err.message}</div>`;}).setPin(current,newPin);}
 const SHORT_TO_DAY={};Object.entries(DAY_SHORT).forEach(([full,short])=>{SHORT_TO_DAY[short.toLowerCase()]=full;});
-function chicagoSplitForDay(day){const cs=STATE.chicagoSplit||{ilPm:0.60,ilAm:0.40};if(day==='Friday')return{ilPm:1,ilAm:0};if(day==='Saturday')return{ilPm:0,ilAm:1};return cs;}
+function chicagoSplitForDay(day,weekLabel){const cs=STATE.chicagoSplit||{ilPm:0.60,ilAm:0.40,hms:0};const sched=weekLabel?getLHScheduleForWeek(weekLabel):STATE.lhSchedule;const hmsEntry=(sched||[]).find(l=>l.lh==='HMS Chicago');const shortDay=DAY_SHORT[day]||day.slice(0,3);const hmsActive=!!(hmsEntry&&hmsEntry.days&&hmsEntry.days[shortDay]);const hms=hmsActive?(cs.hms||0):0;if(day==='Friday')return{ilPm:1-hms,ilAm:0,hms};if(day==='Saturday')return{ilPm:0,ilAm:1-hms,hms};if(!hmsActive){const sum=(cs.ilPm||0)+(cs.ilAm||0);return sum>0?{ilPm:cs.ilPm/sum,ilAm:cs.ilAm/sum,hms:0}:{ilPm:0.60,ilAm:0.40,hms:0};}return{ilPm:cs.ilPm||0,ilAm:cs.ilAm||0,hms};}
 function parseDemandPaste(){
   const raw=document.getElementById('demandPaste').value.trim(),preview=document.getElementById('demandPreview');
+  const weekLabel=document.getElementById('weekLabel').value.trim()||guessWeekLabel();
   if(!raw){preview.innerHTML='<div class="status-bar status-err">Nothing to parse.</div>';return;}
   if(!Object.keys(MARKET_LH_MAP).length){preview.innerHTML='<div class="status-bar status-err">Market mapping still loading — wait a second and try again.</div>';return;}
   const rows=raw.split('\n').map(r=>r.split('\t').map(c=>c.trim()));
@@ -1329,7 +1409,7 @@ function parseDemandPaste(){
   for(let i=headerIdx+1;i<rows.length;i++){
     const row=rows[i],market=row[marketCol];
     if(!market||!MARKET_LH_MAP[market])continue;
-    const isLevelLoaded=hasLoadType?((row[loadTypeCol]||'').toLowerCase()==='level loaded'):false;
+    const isLevelLoaded=hasLoadType?(()=>{const lt=(row[loadTypeCol]||'').toLowerCase();return lt.includes('level loaded')&&!lt.startsWith('not');})():false;
     if(!marketData[market])marketData[market]={};
     Object.entries(dayCols).forEach(([ci,day])=>{
       const v=parseFloat((row[ci]||'0').replace(/,/g,''));
@@ -1348,7 +1428,24 @@ function parseDemandPaste(){
   Object.entries(marketData).forEach(([market,days])=>{
     const lh=MARKET_LH_MAP[market];if(!lh)return;
     Object.entries(days).forEach(([day,{total,ll}])=>{
-      if(market==='Chicago'){const split=chicagoSplitForDay(day);const pmVol=Math.round(total*split.ilPm),amVol=total-pmVol;lhTotals[day]['IL PM']=(lhTotals[day]['IL PM']||0)+pmVol;lhTotals[day]['IL AM']=(lhTotals[day]['IL AM']||0)+amVol;if(!marketVol[day]['IL PM'])marketVol[day]['IL PM']={};if(!marketVol[day]['IL AM'])marketVol[day]['IL AM']={};marketVol[day]['IL PM']['Chicago']=pmVol;marketVol[day]['IL AM']['Chicago']=amVol;if(levelLoadVol){const pmLL=Math.round(ll*split.ilPm),amLL=ll-pmLL;levelLoadVol[day]['IL PM']=(levelLoadVol[day]['IL PM']||0)+pmLL;levelLoadVol[day]['IL AM']=(levelLoadVol[day]['IL AM']||0)+amLL;}}
+      if(market==='Chicago'){
+        const split=chicagoSplitForDay(day,weekLabel);
+        const hmsVol=Math.round(total*split.hms),pmVol=Math.round(total*split.ilPm),amVol=total-pmVol-hmsVol;
+        const hmsLL=Math.round(ll*split.hms),pmLL=Math.round(ll*split.ilPm),amLL=ll-pmLL-hmsLL;
+        lhTotals[day]['IL PM']=(lhTotals[day]['IL PM']||0)+pmVol;
+        lhTotals[day]['IL AM']=(lhTotals[day]['IL AM']||0)+amVol;
+        if(!marketVol[day]['IL PM'])marketVol[day]['IL PM']={};
+        if(!marketVol[day]['IL AM'])marketVol[day]['IL AM']={};
+        marketVol[day]['IL PM']['Chicago']=pmVol;
+        marketVol[day]['IL AM']['Chicago']=amVol;
+        if(levelLoadVol){levelLoadVol[day]['IL PM']=(levelLoadVol[day]['IL PM']||0)+pmLL;levelLoadVol[day]['IL AM']=(levelLoadVol[day]['IL AM']||0)+amLL;}
+        if(hmsVol>0){
+          lhTotals[day]['HMS']=(lhTotals[day]['HMS']||0)+hmsVol;
+          if(!marketVol[day]['HMS'])marketVol[day]['HMS']={};
+          marketVol[day]['HMS']['Chicago']=hmsVol;
+          if(levelLoadVol)levelLoadVol[day]['HMS']=(levelLoadVol[day]['HMS']||0)+hmsLL;
+        }
+      }
       else{lhTotals[day][lh]=(lhTotals[day][lh]||0)+total;if(!marketVol[day][lh])marketVol[day][lh]={};marketVol[day][lh][market]=(marketVol[day][lh][market]||0)+total;if(levelLoadVol)levelLoadVol[day][lh]=(levelLoadVol[day][lh]||0)+ll;}
     });
   });
@@ -1366,7 +1463,7 @@ function parseDemandPaste(){
     html+=`<tr><td>${lhLabel}</td>${cells}</tr>`;
   });
   html+=`<tr><td>Total</td>${activeDays.map(d=>`<td>${Object.values(lhTotals[d]||{}).reduce((s,v)=>s+v,0).toLocaleString()}</td>`).join('')}</tr></tbody></table></div>`;
-  const mode=document.querySelector('input[name="dataMode"]:checked').value,weekLabel=document.getElementById('weekLabel').value.trim()||guessWeekLabel();
+  const mode=document.querySelector('input[name="dataMode"]:checked').value;
   html+=`<div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:8px">${Object.keys(marketData).length} markets · ${lhsPresent.length} linehauls · <strong style="color:${mode==='actual'?'var(--green)':'var(--amber)'}">${weekLabel} · ${mode}</strong>${hasLoadType?' · pink = level loaded':''}</div>`;
   if(warnings.length)html+=`<div class="status-bar status-err" style="margin-top:8px">${warnings.map(w=>'⚠ '+w).join('<br>')}</div>`;
   if(droppedDays.length)html+=`<div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:6px">Skipped empty day column${droppedDays.length>1?'s':''}: ${droppedDays.map(d=>d.slice(0,3)).join(', ')} — no volume found, nothing will be published for ${droppedDays.length>1?'these days':'this day'}.</div>`;
@@ -1396,8 +1493,8 @@ function renderLinesPerDayTable(){if(!STATE.lines)STATE.lines={...DEFAULT_LINES}
 function saveLinesPerDay(){if(!STATE.lines)STATE.lines={};DAYS_ORDER.forEach(d=>{const el=document.getElementById('ln-'+d);if(el)STATE.lines[d]=parseInt(el.value)||2;});google.script.run.withFailureHandler(()=>{}).saveState(STATE);if(STATE.currentDay&&STATE.lines[STATE.currentDay]){STATE.currentLines=STATE.lines[STATE.currentDay];updateLabels();}}
 function renderLaborConfig(){const lc=STATE.laborConfig||{empPerLine:12,replenisher:2,leads:2,boxBuilders:2,hourlyRate:24.39};document.getElementById('lc-empline').value=lc.empPerLine;document.getElementById('lc-replen').value=lc.replenisher;document.getElementById('lc-leads').value=lc.leads;document.getElementById('lc-boxbuild').value=lc.boxBuilders;document.getElementById('lc-rate').value=lc.hourlyRate;}
 function saveLaborConfig(){STATE.laborConfig={empPerLine:parseFloat(document.getElementById('lc-empline').value)||12,replenisher:parseFloat(document.getElementById('lc-replen').value)||2,leads:parseFloat(document.getElementById('lc-leads').value)||2,boxBuilders:parseFloat(document.getElementById('lc-boxbuild').value)||2,hourlyRate:parseFloat(document.getElementById('lc-rate').value)||23.75};google.script.run.withFailureHandler(()=>{}).saveState(STATE);renderAll();}
-function renderChicagoSplit(){const cs=STATE.chicagoSplit||{ilPm:0.60,ilAm:0.40};document.getElementById('cs-ilpm').value=Math.round(cs.ilPm*100);document.getElementById('cs-ilam').value=Math.round(cs.ilAm*100);}
-function saveChicagoSplit(){const pm=parseFloat(document.getElementById('cs-ilpm').value)||60,am=parseFloat(document.getElementById('cs-ilam').value)||40,total=pm+am;const status=document.getElementById('chicagoSplitStatus');if(Math.abs(total-100)>0.1){status.innerHTML=`<div class="status-bar status-err">PM + AM must equal 100% (currently ${total}%)</div>`;return;}STATE.chicagoSplit={ilPm:pm/100,ilAm:am/100};google.script.run.withFailureHandler(()=>{}).saveState(STATE);status.innerHTML='<div class="status-bar status-ok">✓ Saved</div>';setTimeout(()=>status.innerHTML='',3000);}
+function renderChicagoSplit(){const cs=STATE.chicagoSplit||{ilPm:0.60,ilAm:0.40,hms:0};document.getElementById('cs-ilpm').value=Math.round(cs.ilPm*100);document.getElementById('cs-ilam').value=Math.round(cs.ilAm*100);document.getElementById('cs-hms').value=Math.round((cs.hms||0)*100);}
+function saveChicagoSplit(){const pm=parseFloat(document.getElementById('cs-ilpm').value)||0,am=parseFloat(document.getElementById('cs-ilam').value)||0,hms=parseFloat(document.getElementById('cs-hms').value)||0,total=pm+am+hms;const status=document.getElementById('chicagoSplitStatus');if(Math.abs(total-100)>0.1){status.innerHTML=`<div class="status-bar status-err">IL PM + IL AM + HMS must equal 100% (currently ${total}%)</div>`;return;}STATE.chicagoSplit={ilPm:pm/100,ilAm:am/100,hms:hms/100};google.script.run.withFailureHandler(()=>{}).saveState(STATE);status.innerHTML='<div class="status-bar status-ok">✓ Saved</div>';setTimeout(()=>status.innerHTML='',3000);}
 
 function clearDemandData(){if(!confirm('Clear all demand data?'))return;STATE.demands={};STATE.currentWeek=null;STATE.currentDay=null;google.script.run.withFailureHandler(()=>{}).saveState(STATE);renderWeekSel();renderDayTabs();renderAll();}
 function resetAllData(){if(!confirm('Reset everything to defaults?'))return;STATE.lhSchedule=JSON.parse(JSON.stringify(DEFAULT_LH_SCHEDULE));STATE.thruputs={...DEFAULT_THRUPUTS};STATE.lines={...DEFAULT_LINES};STATE.demands={};google.script.run.withFailureHandler(()=>{}).saveState(STATE);location.reload();}
