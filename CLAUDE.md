@@ -15,6 +15,9 @@ Owner: Cori Blackburn. Co-admin: mfuoco@farmersfridge.com.
 - `DP Report.js` — Demand Planning weekly Slack report (note the space in the
   filename; it is not `DPReport.gs`)
 - State persisted server-side in Script Properties
+- `BACKLOG.md` in this repo is the running work list, grouped High/Medium/Low
+  with Removed / Done sections. When Cori says to backlog something, add it
+  there. Keep it current; check it before proposing new work.
 - Deployed via clasp; repo is `Farmers-Fridge-AI-Workbench/pick-tock`
 - `Index.html` inline JS is written one-function-per-line with no spaces. Grep
   `^function name` to find things and expect multi-thousand-character lines.
@@ -136,12 +139,25 @@ deployments) — clear them via Project History when approaching the limit.
   placeholder. Guard not yet implemented.
 - `DP Report.js` builds the prior-week label with `padStart(2, '00')` where
   `'0'` was meant. Harmless by accident. Left alone.
+- **HMS is stored under two spellings and that is fine.** Volume is written as
+  `'HMS'`; the schedule row is `'HMS Chicago'`. They never match, so `simulate`
+  routes HMS through its unknown-linehaul branch as level-load. Verified by
+  execution: the resulting schedule is *identical* either way, because HMS's real
+  CPT (4:31 AM) is already the latest on the board. Only the badge (`lvl load`
+  vs `on time`), the buffer readout (understated by ~2.5h, erring safe), and the
+  markets column (`HMS` vs `Chicago`) differ. Unifying the spelling would change
+  what planners see for no functional gain. Leave it.
 
 ## Working with Cori
 
 Direct and fast-moving. Prefers concise A/B options over long explanations. Lead
 with the answer or the code, explain after. One clarifying question at a time.
 Own mistakes plainly. Ask before making unrequested improvements.
+
+**Cori is not a developer.** She owns the product, not the code. Explain in plain
+language and skip the jargon — no "blobs", "payloads", "guards", or variable
+names unless she asks. When offering options, describe what changes for *users*,
+not what changes in the file. Be brief by default; she will ask for depth.
 
 Verify against the actual file before claiming anything works — read it, run it,
 diff it. Never assert from memory or inference. If a claim can't be checked, say
