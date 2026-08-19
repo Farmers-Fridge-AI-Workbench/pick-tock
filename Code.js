@@ -101,27 +101,78 @@ function doGet(e) {
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 
+// Normalizes an email for comparison: string-safe, trimmed, lowercased.
+// Every identity comparison in this file goes through this — casing or a stray
+// space in a Script Property must never silently revoke someone's access.
+function normEmail_(v) {
+  return (v === null || v === undefined) ? '' : String(v).trim().toLowerCase();
+}
+
 function getCurrentUser() {
-  const email = Session.getActiveUser().getEmail();
+  const rawEmail = Session.getActiveUser().getEmail();
+  const email = String(rawEmail || '').trim();
+  const emailNorm = normEmail_(email);
+
+  // An empty active-user email zeroes out BOTH isAdmin and approverDepts, which
+  // makes every permissioned save fail for a legitimate user. Log it loudly so
+  // Executions shows the real cause instead of a bare authorization error.
+  if (!emailNorm) {
+    Logger.log('getCurrentUser: WARNING — Session.getActiveUser().getEmail() returned empty. '
+      + 'Check web app deployment access setting (should be "Anyone in Farmer\'s Fridge") '
+      + 'and that the user is signed in on the correct Google account.');
+  }
+
   const admins = getAdminUsers();
-  const isAdmin = admins.map(a => a.toLowerCase()).includes(email.toLowerCase());
+  const isAdmin = admins.map(normEmail_).indexOf(emailNorm) !== -1 && !!emailNorm;
+
   const approvers = getApproverUsers();
   const approverDepts = [];
-  Object.entries(approvers).forEach(([dept, emails]) => {
-    if (emails.map(e => e.toLowerCase()).includes(email.toLowerCase())) {
-      approverDepts.push(dept);
-    }
+  Object.keys(approvers || {}).forEach(function(dept) {
+    const list = approvers[dept] || [];
+    if (emailNorm && list.map(normEmail_).indexOf(emailNorm) !== -1) approverDepts.push(dept);
   });
   // Planning approvers get access to all three depts
-  if (approverDepts.includes('planning')) {
-    ['pickpack','logistics'].forEach(d => { if (!approverDepts.includes(d)) approverDepts.push(d); });
+  if (approverDepts.indexOf('planning') !== -1) {
+    ['pickpack','logistics'].forEach(function(d) { if (approverDepts.indexOf(d) === -1) approverDepts.push(d); });
   }
+
+  Logger.log('getCurrentUser: email="' + email + '" isAdmin=' + isAdmin
+    + ' approverDepts=[' + approverDepts.join(',') + '] approverSource=' + getApproverSource_());
+
   return {
-    email,
-    isAdmin,
-    name: email.split('@')[0],
-    approverDepts,
+    email: email,
+    isAdmin: isAdmin,
+    name: emailNorm ? email.split('@')[0] : '',
+    approverDepts: approverDepts,
   };
+}
+
+// Reports whether the approver list came from the stored Script Property or the
+// DEFAULT_APPROVERS constant. If someone once saved the approver panel, the stored
+// property wins and the constant in this file is irrelevant — this makes that visible.
+function getApproverSource_() {
+  const stored = PropertiesService.getScriptProperties().getProperty('picktock_approvers');
+  if (!stored) return 'DEFAULT_APPROVERS (no stored property)';
+  try { JSON.parse(stored); return 'stored picktock_approvers property'; }
+  catch (e) { return 'stored picktock_approvers property is UNPARSEABLE — falling back to DEFAULT_APPROVERS'; }
+}
+
+// Read-only diagnostic. Run from the Apps Script editor and read Executions/Logs to
+// see exactly what the live config resolves to for any email — no need to be that user.
+// Safe to delete; nothing calls it.
+function logApproverConfig() {
+  const approvers = getApproverUsers();
+  Logger.log('approver source: ' + getApproverSource_());
+  Logger.log('admins: ' + JSON.stringify(getAdminUsers()));
+  Logger.log('approvers: ' + JSON.stringify(approvers));
+  ['johnathan.sherod@farmersfridge.com'].forEach(function(test) {
+    const n = normEmail_(test);
+    const depts = Object.keys(approvers || {}).filter(function(d) {
+      return (approvers[d] || []).map(normEmail_).indexOf(n) !== -1;
+    });
+    Logger.log('resolves "' + test + '" -> approverDepts=[' + depts.join(',') + ']'
+      + ' isAdmin=' + (getAdminUsers().map(normEmail_).indexOf(n) !== -1));
+  });
 }
 
 function getApproverUsers() {
@@ -851,22 +902,80 @@ function pushDepartureTimes() {
 
 // ─── SUPPORTING SAVES ─────────────────────────────────────────────────────────
 
+// True when an incoming dept payload is byte-identical to what is already stored —
+// i.e. the caller isn't actually changing that department, just echoing it back.
+function approvalUnchanged_(existingVal, incomingVal) {
+  const a = existingVal || {}, b = incomingVal || {};
+  return !!a.approved === !!b.approved
+      && String(a.approvedBy || '') === String(b.approvedBy || '');
+}
+
 function saveDayApproval(weekLabel, day, approvals) {
   const user = getCurrentUser();
-  // Admins can save anything; dept approvers can save only their own scoped dept(s)
-  if (!user.isAdmin) {
-    const allowedDepts = user.approverDepts || [];
-    const requestedDepts = Object.keys(approvals);
-    const allAllowed = requestedDepts.every(dept => allowedDepts.includes(dept));
-    if (!allAllowed) throw new Error('Not authorized to approve this department');
+  const requestedDepts = Object.keys(approvals || {});
+  Logger.log('saveDayApproval: ENTRY user="' + user.email + '" isAdmin=' + user.isAdmin
+    + ' approverDepts=[' + (user.approverDepts || []).join(',') + ']'
+    + ' week=' + weekLabel + ' day=' + day
+    + ' requestedDepts=[' + requestedDepts.join(',') + ']');
+
+  if (!weekLabel || !day) {
+    Logger.log('saveDayApproval: ABORT — missing weekLabel or day');
+    throw new Error('Missing week or day');
   }
+  if (!requestedDepts.length) {
+    Logger.log('saveDayApproval: ABORT — empty approvals payload');
+    throw new Error('Nothing to save');
+  }
+
   let state = getState() || { demands: {} };
   if (!state.demands) state.demands = {};
   if (!state.demands[weekLabel]) state.demands[weekLabel] = {};
   if (!state.demands[weekLabel][day]) state.demands[weekLabel][day] = {};
-  // Merge — only overwrite depts included in this save, preserve others
   const existing = state.demands[weekLabel][day].approvals || {};
-  Object.entries(approvals).forEach(([dept, val]) => {
+
+  // ── AUTHORIZATION ──────────────────────────────────────────────────────────
+  // Scoped per department, not per payload. Previously this rejected the ENTIRE
+  // request if it contained any dept the caller didn't own — and since the client
+  // used to send the whole approvals object, a Pick Pack approver was blocked on
+  // any day another department had already touched, throwing before the audit log
+  // line ever ran. Now: depts the caller owns are applied; depts they don't own
+  // are only rejected if they'd actually CHANGE something, otherwise ignored.
+  const allowedDepts = user.approverDepts || [];
+  const toApply = {};
+  const ignored = [];
+  if (user.isAdmin) {
+    requestedDepts.forEach(function(dept) { toApply[dept] = approvals[dept]; });
+    Logger.log('saveDayApproval: admin — applying all requested depts');
+  } else {
+    const blocked = [];
+    requestedDepts.forEach(function(dept) {
+      if (allowedDepts.indexOf(dept) !== -1) {
+        toApply[dept] = approvals[dept];
+      } else if (approvalUnchanged_(existing[dept], approvals[dept])) {
+        ignored.push(dept);                 // echoed back unchanged — harmless, skip it
+      } else {
+        blocked.push(dept);                 // genuine attempt to change someone else's dept
+      }
+    });
+    if (blocked.length) {
+      Logger.log('saveDayApproval: DENIED — user="' + user.email + '" tried to change dept(s) ['
+        + blocked.join(',') + '] but only owns [' + allowedDepts.join(',') + ']');
+      throw new Error('Not authorized to approve: ' + blocked.join(', '));
+    }
+    if (!Object.keys(toApply).length) {
+      Logger.log('saveDayApproval: DENIED — user="' + user.email + '" owns no requested dept. '
+        + 'requested=[' + requestedDepts.join(',') + '] owns=[' + allowedDepts.join(',') + '] '
+        + 'approverSource=' + getApproverSource_());
+      throw new Error('You are not listed as an approver for this department. '
+        + 'Ask Cori to check Admin \u2192 approval access for ' + (user.email || '(no email resolved)') + '.');
+    }
+    if (ignored.length) Logger.log('saveDayApproval: ignored unchanged foreign dept(s) [' + ignored.join(',') + ']');
+  }
+  Logger.log('saveDayApproval: AUTHORIZED — applying [' + Object.keys(toApply).join(',') + ']');
+
+  // ── AUDIT ──────────────────────────────────────────────────────────────────
+  Object.keys(toApply).forEach(function(dept) {
+    const val = toApply[dept];
     const wasApproved = !!(existing[dept] && existing[dept].approved);
     const nowApproved = !!(val && val.approved);
     writeAuditLog(
@@ -876,11 +985,17 @@ function saveDayApproval(weekLabel, day, approvals) {
       weekLabel, day
     );
   });
-  state.demands[weekLabel][day].approvals = Object.assign({}, existing, approvals);
+  Logger.log('saveDayApproval: audit rows written for [' + Object.keys(toApply).join(',') + ']');
+
+  // ── PERSIST ────────────────────────────────────────────────────────────────
+  // Object.assign preserves every other dept's approval untouched.
+  state.demands[weekLabel][day].approvals = Object.assign({}, existing, toApply);
   state.lastModified = new Date().toISOString();
   const stateToSave = Object.assign({}, state);
   delete stateToSave.cptOverrides;
   PropertiesService.getScriptProperties().setProperty(STORAGE_KEY, JSON.stringify(stateToSave));
+  Logger.log('saveDayApproval: STATE WRITTEN ' + weekLabel + '/' + day
+    + ' approvals=' + JSON.stringify(state.demands[weekLabel][day].approvals));
   return { ok: true };
 }
 

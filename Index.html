@@ -302,6 +302,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
                   </div>
                 </div>
                 <div id="approvalReadOnly-planning" style="display:none;font-family:var(--mono);font-size:11px;color:var(--muted)">--</div>
+                <div id="approvalErr-planning" style="display:none;font-family:var(--mono);font-size:10px;color:var(--red);margin-top:5px;line-height:1.35"></div>
               </div>
               <div style="border-top:.5px solid var(--border);padding-top:8px;margin-top:2px">
                 <div style="font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Pick Pack</div>
@@ -320,6 +321,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
                   </div>
                 </div>
                 <div id="approvalReadOnly-pickpack" style="display:none;font-family:var(--mono);font-size:11px;color:var(--muted)">--</div>
+                <div id="approvalErr-pickpack" style="display:none;font-family:var(--mono);font-size:10px;color:var(--red);margin-top:5px;line-height:1.35"></div>
               </div>
               <div style="border-top:.5px solid var(--border);padding-top:8px;margin-top:2px">
                 <div style="font-size:9px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Logistics</div>
@@ -338,6 +340,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:3px;cursor:pointe
                   </div>
                 </div>
                 <div id="approvalReadOnly-logistics" style="display:none;font-family:var(--mono);font-size:11px;color:var(--muted)">--</div>
+                <div id="approvalErr-logistics" style="display:none;font-family:var(--mono);font-size:10px;color:var(--red);margin-top:5px;line-height:1.35"></div>
               </div>
             </div>
             <!-- HOLIDAY OVERRIDE — sidebar indicator only, modal for editing -->
@@ -665,8 +668,37 @@ function getPickStartVal(){const v=document.getElementById('pickStartInput').val
 function getAllocStart(){const v=document.getElementById('allocTimeInput').value||'18:15';const[hh,mm]=v.split(':').map(Number);return hh+mm/60;}
 function updateAllocUI(){const isAdmin=STATE.adminUnlocked;const canEditAlloc=isAdmin||STATE.approverDepts.includes('pickpack');document.getElementById('allocAdminCtrl').style.display=canEditAlloc?'flex':'none';document.getElementById('allocReadOnly').style.display=canEditAlloc?'none':'block';const previewCell=document.getElementById('previewAsCell');if(previewCell)previewCell.style.display=(_realAdminUnlocked||isAdmin)?'':'none';const approvalCell=document.getElementById('approvalCell');if(approvalCell)approvalCell.style.display=(isAdmin||STATE.approverDepts.length>0)?'':'none';loadApprovalUI();loadHolidayOverrideUI();}
 const APPROVAL_KEYS=['planning','pickpack','logistics'];
-function loadApprovalUI(){if(!STATE.currentWeek||!STATE.currentDay)return;const dayData=STATE.demands[STATE.currentWeek]?.[STATE.currentDay];const cell=document.getElementById('approvalCell');if(!cell)return;cell.style.display='';const isAdmin=STATE.adminUnlocked;const approvals=dayData?.approvals||{};APPROVAL_KEYS.forEach(key=>{const canEdit=isAdmin||STATE.approverDepts.includes(key);document.getElementById('approvalAdminCtrl-'+key).style.display=canEdit?'flex':'none';document.getElementById('approvalReadOnly-'+key).style.display=canEdit?'none':'block';const approved=approvals[key]?.approved||false;const approvedBy=approvals[key]?.approvedBy||'';if(canEdit){if(approved){document.getElementById('approvalEditMode-'+key).style.display='none';document.getElementById('approvalLockedMode-'+key).style.display='flex';document.getElementById('approvalLockedText-'+key).textContent='✅ '+approvedBy;}else{document.getElementById('approvalEditMode-'+key).style.display='flex';document.getElementById('approvalLockedMode-'+key).style.display='none';document.getElementById('approvedCheck-'+key).checked=false;document.getElementById('approvedByInput-'+key).value='';}}else{const deptColor={'planning':'#a855f7','pickpack':'var(--green)','logistics':'var(--accent)'}[key]||'var(--green)';document.getElementById('approvalReadOnly-'+key).textContent=approved?'✅ '+(approvedBy||'?'):'—';document.getElementById('approvalReadOnly-'+key).style.color=approved?deptColor:'var(--muted)';}});}
-function saveApproval(key){if(!STATE.currentWeek||!STATE.currentDay)return;if(!STATE.adminUnlocked&&!STATE.approverDepts.includes(key))return;const dayData=STATE.demands[STATE.currentWeek]?.[STATE.currentDay];if(!dayData)return;if(!dayData.approvals)dayData.approvals={};const approved=document.getElementById('approvedCheck-'+key).checked;const approvedBy=document.getElementById('approvedByInput-'+key).value.trim();dayData.approvals[key]={approved,approvedBy};renderDayTabs();loadApprovalUI();google.script.run.withFailureHandler(()=>{}).saveDayApproval(STATE.currentWeek,STATE.currentDay,dayData.approvals);}
+function loadApprovalUI(){if(!STATE.currentWeek||!STATE.currentDay)return;const dayData=STATE.demands[STATE.currentWeek]?.[STATE.currentDay];const cell=document.getElementById('approvalCell');if(!cell)return;cell.style.display='';APPROVAL_KEYS.forEach(k=>setApprovalErr(k,''));const isAdmin=STATE.adminUnlocked;const approvals=dayData?.approvals||{};APPROVAL_KEYS.forEach(key=>{const canEdit=isAdmin||STATE.approverDepts.includes(key);document.getElementById('approvalAdminCtrl-'+key).style.display=canEdit?'flex':'none';document.getElementById('approvalReadOnly-'+key).style.display=canEdit?'none':'block';const approved=approvals[key]?.approved||false;const approvedBy=approvals[key]?.approvedBy||'';if(canEdit){if(approved){document.getElementById('approvalEditMode-'+key).style.display='none';document.getElementById('approvalLockedMode-'+key).style.display='flex';document.getElementById('approvalLockedText-'+key).textContent='✅ '+approvedBy;}else{document.getElementById('approvalEditMode-'+key).style.display='flex';document.getElementById('approvalLockedMode-'+key).style.display='none';document.getElementById('approvedCheck-'+key).checked=false;document.getElementById('approvedByInput-'+key).value='';}}else{const deptColor={'planning':'#a855f7','pickpack':'var(--green)','logistics':'var(--accent)'}[key]||'var(--green)';document.getElementById('approvalReadOnly-'+key).textContent=approved?'✅ '+(approvedBy||'?'):'—';document.getElementById('approvalReadOnly-'+key).style.color=approved?deptColor:'var(--muted)';}});}
+function setApprovalErr(key,msg){const el=document.getElementById('approvalErr-'+key);if(!el)return;if(msg){el.textContent=msg;el.style.display='block';}else{el.textContent='';el.style.display='none';}}
+function saveApproval(key){
+  if(!STATE.currentWeek||!STATE.currentDay)return;
+  if(!STATE.adminUnlocked&&!STATE.approverDepts.includes(key))return;
+  const dayData=STATE.demands[STATE.currentWeek]?.[STATE.currentDay];
+  if(!dayData)return;
+  if(!dayData.approvals)dayData.approvals={};
+  setApprovalErr(key,'');
+  const approved=document.getElementById('approvedCheck-'+key).checked;
+  const approvedBy=document.getElementById('approvedByInput-'+key).value.trim();
+  // Snapshot for rollback if the server rejects the save
+  const wk=STATE.currentWeek, dy=STATE.currentDay;
+  const prev=dayData.approvals[key]?JSON.parse(JSON.stringify(dayData.approvals[key])):undefined;
+  dayData.approvals[key]={approved,approvedBy};
+  renderDayTabs();loadApprovalUI();
+  // Send ONLY this department. Server merges with Object.assign, so other depts are
+  // preserved untouched — and a dept approver is never asked to write a dept they
+  // don't own (which used to trip the server-side authorization guard and throw
+  // before the audit log line ever ran).
+  const payload={};payload[key]={approved,approvedBy};
+  google.script.run
+    .withSuccessHandler(()=>{setApprovalErr(key,'');})
+    .withFailureHandler(err=>{
+      const dd=STATE.demands[wk]?.[dy];
+      if(dd&&dd.approvals){if(prev===undefined)delete dd.approvals[key];else dd.approvals[key]=prev;}
+      renderDayTabs();loadApprovalUI();
+      setApprovalErr(key,'Not saved — '+((err&&err.message)?err.message:'server error')+'. Reload and retry; if it repeats, send Cori this message.');
+    })
+    .saveDayApproval(wk,dy,payload);
+}
 function editApproval(key){const dayData=STATE.demands[STATE.currentWeek]?.[STATE.currentDay];const approvedBy=dayData?.approvals?.[key]?.approvedBy||'';document.getElementById('approvedCheck-'+key).checked=true;document.getElementById('approvedByInput-'+key).value=approvedBy;document.getElementById('approvalEditMode-'+key).style.display='flex';document.getElementById('approvalLockedMode-'+key).style.display='none';}
 function cancelApprovalEdit(key){loadApprovalUI();}
 
