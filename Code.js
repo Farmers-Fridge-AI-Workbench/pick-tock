@@ -1,6 +1,9 @@
 // ─── PICK TOCK ⏱️ — Code.gs ───────────────────────────────────────────────────
 // Google Apps Script server-side code
-// Deploy as Web App: Execute as "Me", Who has access = "Anyone in Farmer's Fridge"
+// Deploy as Web App: Execute as "User accessing the web app", Who has access = "Anyone in Farmer's Fridge"
+// NOT "Me" — under USER_DEPLOYING, Session.getActiveUser().getEmail() below returns the
+// deployer rather than the visitor, which breaks every admin/approver check in getCurrentUser
+// and makes carrier emails send from the wrong account.
 
 const FORECAST_SHEET_ID = '1wyHr4QhvRGfyHgYURY7k5vLJFrpV3AX_wo5hkkk151A';
 const FORECAST_TAB      = 'Pick Pack Forecast';
